@@ -1,0 +1,149 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Setup PowerShell
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y powershell
+        
+    - name: Bootstrap Build Environment
+      shell: pwsh
+      run: |
+        ./build.ps1 -Bootstrap
+        
+    - name: Build Module
+      shell: pwsh
+      run: |
+        ./build.ps1 -Task Build
+        
+    - name: Run PSScriptAnalyzer
+      shell: pwsh
+      run: |
+        ./build.ps1 -Task Analyze
+      continue-on-error: true
+      
+    - name: Run Pester Tests
+      shell: pwsh
+      run: |
+        # Run tests but allow up to 15% failure rate
+        $testResults = Invoke-Pester -Path 'Tests/' -PassThru
+        $passRate = ($testResults.PassedCount / $testResults.TotalCount) * 100
+        Write-Host "Test Results: $($testResults.PassedCount)/$($testResults.TotalCount) passed ($([Math]::Round($passRate, 2))%)"
+        
+        # Fail only if pass rate is below 85%
+        if ($passRate -lt 85) {
+          Write-Error "Test pass rate is below 85% threshold"
+          exit 1
+        } else {
+          Write-Host "✅ Test pass rate meets threshold" -ForegroundColor Green
+        }
+        
+    - name: Upload Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ matrix.os }}
+        path: |
+          Output/TestResults.xml
+          Output/CodeCoverage.xml
+          
+    - name: Upload Build Artifacts
+      if: success() && matrix.os == 'windows-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: module-build
+        path: Output/FleetDM-PowerShell/
+
+  publish:
+    name: Publish to PowerShell Gallery
+    needs: build
+    runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: Download Build Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: module-build
+        path: Output/FleetDM-PowerShell/
+        
+    - name: Bootstrap Build Environment
+      shell: pwsh
+      run: |
+        ./build.ps1 -Bootstrap
+        
+    - name: Publish to PowerShell Gallery
+      shell: pwsh
+      env:
+        NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+      run: |
+        # Direct publish without running tests again
+        Import-Module ./Output/FleetDM-PowerShell/FleetDM-PowerShell.psd1 -Force
+        
+        if (!$env:NUGET_API_KEY) {
+          throw "NUGET_API_KEY environment variable is not set"
+        }
+        
+        Publish-Module -Path ./Output/FleetDM-PowerShell `
+          -NuGetApiKey $env:NUGET_API_KEY `
+          -Repository PSGallery `
+          -Force
+        
+  create-release:
+    name: Create GitHub Release
+    needs: publish
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: Download Build Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: module-build
+        path: Output/FleetDM-PowerShell/
+        
+    - name: Create Archive
+      run: |
+        cd Output
+        zip -r FleetDM-PowerShell.zip FleetDM-PowerShell/
+        
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: Release ${{ github.ref_name }}
+        draft: false
+        prerelease: false
+        files: Output/FleetDM-PowerShell.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

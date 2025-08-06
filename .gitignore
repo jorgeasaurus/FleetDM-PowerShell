@@ -1,0 +1,41 @@
+# Build outputs
+Output/
+*.zip
+*.nupkg
+
+# Test results
+TestResults.xml
+CodeCoverage.xml
+*.coverage
+
+# Documentation build
+docs/*.md
+!docs/README.md
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# PowerShell
+*.ps1xml
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Credentials and secrets
+*.credential
+*.cred
+secrets.json
+.env
+
+# Local test configurations
+local.settings.json
+test.settings.json
+claude.md
