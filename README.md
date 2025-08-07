@@ -5,7 +5,10 @@
 A comprehensive PowerShell module for interacting with the FleetDM REST API.
 
 [![CI/CD Pipeline](https://github.com/Jorgeasaurus/FleetDM-PowerShell/actions/workflows/ci.yml/badge.svg)](https://github.com/Jorgeasaurus/FleetDM-PowerShell/actions/workflows/ci.yml)
-[![PowerShell Gallery](https://img.shields.io/powershellgallery/v/FleetDM-PowerShell)](https://www.powershellgallery.com/packages/FleetDM-PowerShell)
+[![PowerShell Gallery Version](https://img.shields.io/powershellgallery/v/FleetDM-PowerShell)](https://www.powershellgallery.com/packages/FleetDM-PowerShell)
+[![PowerShell Gallery Downloads](https://img.shields.io/powershellgallery/dt/FleetDM-PowerShell?label=downloads)](https://www.powershellgallery.com/packages/FleetDM-PowerShell)
+[![PowerShell Platforms](https://img.shields.io/powershellgallery/p/FleetDM-PowerShell)](https://www.powershellgallery.com/packages/FleetDM-PowerShell)
+[![GitHub Release](https://img.shields.io/github/v/release/Jorgeasaurus/FleetDM-PowerShell)](https://github.com/Jorgeasaurus/FleetDM-PowerShell/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Overview
