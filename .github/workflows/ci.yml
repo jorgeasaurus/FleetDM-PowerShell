@@ -49,8 +49,18 @@ jobs:
     - name: Run Pester Tests
       shell: pwsh
       run: |
+        # Create Output directory if it doesn't exist
+        New-Item -ItemType Directory -Path 'Output' -Force | Out-Null
+        
         # Run tests but allow up to 15% failure rate
-        $testResults = Invoke-Pester -Path 'Tests/' -PassThru
+        $config = New-PesterConfiguration
+        $config.Run.Path = 'Tests/'
+        $config.Run.PassThru = $true
+        $config.TestResult.Enabled = $true
+        $config.TestResult.OutputPath = 'Output/TestResults.xml'
+        $config.TestResult.OutputFormat = 'NUnitXml'
+        
+        $testResults = Invoke-Pester -Configuration $config
         $passRate = ($testResults.PassedCount / $testResults.TotalCount) * 100
         Write-Host "Test Results: $($testResults.PassedCount)/$($testResults.TotalCount) passed ($([Math]::Round($passRate, 2))%)"
         
@@ -69,7 +79,7 @@ jobs:
         name: test-results-${{ matrix.os }}
         path: |
           Output/TestResults.xml
-          Output/CodeCoverage.xml
+        if-no-files-found: warn
           
     - name: Upload Build Artifacts
       if: success() && matrix.os == 'windows-latest'
