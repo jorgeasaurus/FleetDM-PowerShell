@@ -128,7 +128,7 @@ jobs:
         
   create-release:
     name: Create GitHub Release
-    needs: publish
+    needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     
@@ -148,12 +148,14 @@ jobs:
         zip -r FleetDM-PowerShell.zip FleetDM-PowerShell/
         
     - name: Create Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ github.ref_name }}
-        name: Release ${{ github.ref_name }}
+        name: FleetDM PowerShell Module ${{ github.ref_name }}
         draft: false
         prerelease: false
         files: Output/FleetDM-PowerShell.zip
+        fail_on_unmatched_files: false
+        generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
