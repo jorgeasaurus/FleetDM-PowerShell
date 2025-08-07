@@ -9,6 +9,12 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+  packages: write
+  actions: read
+  checks: read
+
 jobs:
   build:
     name: Build and Test
