@@ -1,6 +1,6 @@
 @{
     RootModule = 'FleetDM-PowerShell.psm1'
-    ModuleVersion = '1.0.3'
+    ModuleVersion = '1.0.4'
     GUID = 'a7c4b8f3-2d1e-4f5a-9c8b-1e3d5a7f9b2c'
     Author = 'Jorge Suarez'
     CompanyName = 'Jorgeasaurus'
@@ -37,11 +37,11 @@
     # Private data to pass to the module specified in RootModule/ModuleToProcess
     PrivateData = @{
         PSData = @{
-            Tags = @('FleetDM', 'MDM', 'Security', 'API', 'DeviceManagement', 'Osquery')
+            Tags = @('FleetDM', 'MDM', 'Security', 'API', 'DeviceManagement', 'Osquery', 'PSEdition_Desktop', 'PSEdition_Core', 'Windows', 'Linux', 'MacOS')
             LicenseUri = 'https://github.com/Jorgeasaurus/FleetDM-PowerShell/blob/main/LICENSE'
             ProjectUri = 'https://github.com/Jorgeasaurus/FleetDM-PowerShell'
             IconUri = ''
-            ReleaseNotes = 'Initial release with core FleetDM API functionality'
+            ReleaseNotes = 'Version 1.0.4 - Added comprehensive documentation with PlatyPS, GitHub Pages site, and platform compatibility tags'
             Prerelease = ''
             RequireLicenseAcceptance = $false
             ExternalModuleDependencies = @()
