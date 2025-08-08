@@ -1,0 +1,44 @@
+# Jekyll configuration for GitHub Pages
+title: FleetDM-PowerShell
+description: PowerShell module for FleetDM API integration
+baseurl: "/FleetDM-PowerShell"
+url: "https://jorgeasaurus.github.io"
+
+# Theme
+theme: jekyll-theme-minimal
+
+# Plugins
+plugins:
+  - jekyll-relative-links
+  - jekyll-seo-tag
+
+# Include these files/folders
+include:
+  - README.md
+  - CONTRIBUTING.md
+  - LICENSE
+  - docs
+  - en-US
+
+# Exclude from processing
+exclude:
+  - "*.ps1"
+  - "*.psm1"
+  - "*.psd1"
+  - Tests/
+  - Private/
+  - Public/
+  - Output/
+  - build/
+  - .github/workflows/documentation.yml
+
+# Enable relative links
+relative_links:
+  enabled: true
+  collections: true
+
+# Markdown settings
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
