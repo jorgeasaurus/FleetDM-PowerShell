@@ -72,7 +72,6 @@ jobs:
 
   build-docs-site:
     runs-on: ubuntu-latest
-    needs: generate-docs
     if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     
     permissions:
@@ -85,79 +84,31 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Download Documentation
-      uses: actions/download-artifact@v4
-      with:
-        name: documentation
+    - name: Checkout
+      uses: actions/checkout@v4
     
     - name: Setup Pages
       uses: actions/configure-pages@v4
     
-    - name: Create Documentation Site Files
-      shell: pwsh
+    - name: Prepare Documentation Site
       run: |
-        # Create _config.yml for Jekyll
-        @"
+        # Create Jekyll config
+        cat > _config.yml << 'EOF'
         theme: jekyll-theme-minimal
         title: FleetDM-PowerShell
         description: PowerShell module for FleetDM API integration
-        "@ | Out-File -FilePath _config.yml
+        include:
+          - docs
+          - README.md
+          - CONTRIBUTING.md
+        EOF
         
-        # Create index.md for GitHub Pages
-        @"
-        # FleetDM-PowerShell Documentation
+        # Copy README as index
+        cp README.md index.md
         
-        PowerShell module for interacting with the FleetDM API.
-        
-        ## Quick Start
-        
-        ``````powershell
-        Install-Module -Name FleetDM-PowerShell
-        Import-Module FleetDM-PowerShell
-        
-        # Connect to FleetDM
-        `$token = Read-Host -AsSecureString "Enter API Token"
-        Connect-FleetDM -BaseUri "https://fleet.example.com" -ApiToken `$token
-        
-        # Get all online hosts
-        Get-FleetHost -Status online
-        ``````
-        
-        ## Available Cmdlets
-        
-        ### Authentication
-        - [Connect-FleetDM](docs/en-US/Connect-FleetDM.md) - Connect to a FleetDM instance
-        - [Disconnect-FleetDM](docs/en-US/Disconnect-FleetDM.md) - Disconnect from FleetDM
-        
-        ### Host Management
-        - [Get-FleetHost](docs/en-US/Get-FleetHost.md) - Retrieve host information
-        - [Remove-FleetHost](docs/en-US/Remove-FleetHost.md) - Remove a host from Fleet
-        
-        ### Policies
-        - [Get-FleetPolicy](docs/en-US/Get-FleetPolicy.md) - Get policy information
-        - [New-FleetPolicy](docs/en-US/New-FleetPolicy.md) - Create a new policy
-        - [Set-FleetPolicy](docs/en-US/Set-FleetPolicy.md) - Update an existing policy
-        
-        ### Queries
-        - [Get-FleetQuery](docs/en-US/Get-FleetQuery.md) - Get saved queries
-        - [Invoke-FleetQuery](docs/en-US/Invoke-FleetQuery.md) - Execute a live query
-        - [Invoke-FleetSavedQuery](docs/en-US/Invoke-FleetSavedQuery.md) - Execute a saved query
-        
-        ### Software
-        - [Get-FleetSoftware](docs/en-US/Get-FleetSoftware.md) - Get software inventory
-        
-        ### Core
-        - [Invoke-FleetDMMethod](docs/en-US/Invoke-FleetDMMethod.md) - Direct API access
-        
-        ## Additional Resources
-        
-        - [About FleetDM-PowerShell](docs/en-US/about_FleetDM-PowerShell.help.md)
-        - [README](README.md)
-        - [Contributing Guidelines](CONTRIBUTING.md)
-        - [GitHub Repository](https://github.com/Jorgeasaurus/FleetDM-PowerShell)
-        "@ | Out-File -FilePath index.md
+        # Verify documentation exists
+        echo "Documentation files:"
+        ls -la docs/en-US/ 2>/dev/null || echo "Docs not found yet"
     
     - name: Upload Pages Artifact
       uses: actions/upload-pages-artifact@v3
