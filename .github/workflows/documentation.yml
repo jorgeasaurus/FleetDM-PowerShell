@@ -1,0 +1,169 @@
+name: Documentation
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Public/**'
+      - 'docs/**'
+      - '*.md'
+      - '.github/workflows/documentation.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Public/**'
+      - 'docs/**'
+      - '*.md'
+  workflow_dispatch:
+
+jobs:
+  generate-docs:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup PowerShell
+      shell: pwsh
+      run: |
+        # Install required modules
+        Install-Module -Name PlatyPS -Force -Scope CurrentUser
+        Install-Module -Name PowerShellGet -Force -Scope CurrentUser -AllowClobber
+    
+    - name: Generate Documentation
+      shell: pwsh
+      run: |
+        # Import module
+        Import-Module ./FleetDM-PowerShell.psd1 -Force
+        
+        # Generate/Update markdown documentation
+        $docsPath = "./docs/en-US"
+        if (!(Test-Path $docsPath)) {
+            New-Item -Path $docsPath -ItemType Directory -Force
+        }
+        
+        # Generate help for each command
+        Get-Command -Module FleetDM-PowerShell | ForEach-Object {
+            New-MarkdownHelp -Command $_.Name -OutputFolder $docsPath -Force
+        }
+        
+        # Generate module page
+        New-MarkdownHelp -Module FleetDM-PowerShell -OutputFolder $docsPath -WithModulePage -Force
+        
+        # Generate external help
+        New-ExternalHelp -Path $docsPath -OutputPath ./en-US -Force
+    
+    - name: Upload Documentation Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: documentation
+        path: |
+          docs/
+          en-US/
+    
+    - name: Commit Documentation Updates
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add docs/ en-US/
+        git diff --staged --quiet || git commit -m "Update documentation [skip ci]"
+        git push || echo "No changes to push"
+
+  build-docs-site:
+    runs-on: ubuntu-latest
+    needs: generate-docs
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    
+    environment:
+      name: pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download Documentation
+      uses: actions/download-artifact@v4
+      with:
+        name: documentation
+    
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+    
+    - name: Create Documentation Site Files
+      shell: pwsh
+      run: |
+        # Create _config.yml for Jekyll
+        @"
+        theme: jekyll-theme-minimal
+        title: FleetDM-PowerShell
+        description: PowerShell module for FleetDM API integration
+        "@ | Out-File -FilePath _config.yml
+        
+        # Create index.md for GitHub Pages
+        @"
+        # FleetDM-PowerShell Documentation
+        
+        PowerShell module for interacting with the FleetDM API.
+        
+        ## Quick Start
+        
+        ``````powershell
+        Install-Module -Name FleetDM-PowerShell
+        Import-Module FleetDM-PowerShell
+        
+        # Connect to FleetDM
+        `$token = Read-Host -AsSecureString "Enter API Token"
+        Connect-FleetDM -BaseUri "https://fleet.example.com" -ApiToken `$token
+        
+        # Get all online hosts
+        Get-FleetHost -Status online
+        ``````
+        
+        ## Available Cmdlets
+        
+        ### Authentication
+        - [Connect-FleetDM](docs/en-US/Connect-FleetDM.md) - Connect to a FleetDM instance
+        - [Disconnect-FleetDM](docs/en-US/Disconnect-FleetDM.md) - Disconnect from FleetDM
+        
+        ### Host Management
+        - [Get-FleetHost](docs/en-US/Get-FleetHost.md) - Retrieve host information
+        - [Remove-FleetHost](docs/en-US/Remove-FleetHost.md) - Remove a host from Fleet
+        
+        ### Policies
+        - [Get-FleetPolicy](docs/en-US/Get-FleetPolicy.md) - Get policy information
+        - [New-FleetPolicy](docs/en-US/New-FleetPolicy.md) - Create a new policy
+        - [Set-FleetPolicy](docs/en-US/Set-FleetPolicy.md) - Update an existing policy
+        
+        ### Queries
+        - [Get-FleetQuery](docs/en-US/Get-FleetQuery.md) - Get saved queries
+        - [Invoke-FleetQuery](docs/en-US/Invoke-FleetQuery.md) - Execute a live query
+        - [Invoke-FleetSavedQuery](docs/en-US/Invoke-FleetSavedQuery.md) - Execute a saved query
+        
+        ### Software
+        - [Get-FleetSoftware](docs/en-US/Get-FleetSoftware.md) - Get software inventory
+        
+        ### Core
+        - [Invoke-FleetDMMethod](docs/en-US/Invoke-FleetDMMethod.md) - Direct API access
+        
+        ## Additional Resources
+        
+        - [About FleetDM-PowerShell](docs/en-US/about_FleetDM-PowerShell.help.md)
+        - [README](README.md)
+        - [Contributing Guidelines](CONTRIBUTING.md)
+        - [GitHub Repository](https://github.com/Jorgeasaurus/FleetDM-PowerShell)
+        "@ | Out-File -FilePath index.md
+    
+    - name: Upload Pages Artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: .
+    
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
