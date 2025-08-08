@@ -5,6 +5,7 @@
 A comprehensive PowerShell module for interacting with the FleetDM REST API.
 
 [![CI/CD Pipeline](https://github.com/Jorgeasaurus/FleetDM-PowerShell/actions/workflows/ci.yml/badge.svg)](https://github.com/Jorgeasaurus/FleetDM-PowerShell/actions/workflows/ci.yml)
+[![Documentation](https://img.shields.io/badge/docs-online-blue)](https://jorgeasaurus.github.io/FleetDM-PowerShell/)
 [![PowerShell Gallery Version](https://img.shields.io/powershellgallery/v/FleetDM-PowerShell)](https://www.powershellgallery.com/packages/FleetDM-PowerShell)
 [![PowerShell Gallery Downloads](https://img.shields.io/powershellgallery/dt/FleetDM-PowerShell?label=downloads)](https://www.powershellgallery.com/packages/FleetDM-PowerShell)
 [![PowerShell Platforms](https://img.shields.io/powershellgallery/p/FleetDM-PowerShell)](https://www.powershellgallery.com/packages/FleetDM-PowerShell)
@@ -14,6 +15,8 @@ A comprehensive PowerShell module for interacting with the FleetDM REST API.
 ## Overview
 
 FleetDM-PowerShell provides a native PowerShell interface to FleetDM, enabling administrators to manage hosts, queries, policies, and software inventory through familiar PowerShell cmdlets.
+
+📚 **[View Full Documentation](https://jorgeasaurus.github.io/FleetDM-PowerShell/)** - Comprehensive online documentation with detailed cmdlet reference
 
 ## Features
 
@@ -92,6 +95,8 @@ Get-FleetSoftware -VulnerableOnly
 ```
 
 ## Available Cmdlets
+
+For detailed help and examples, visit the **[Online Documentation](https://jorgeasaurus.github.io/FleetDM-PowerShell/)** or use `Get-Help <cmdlet-name> -Full`.
 
 ### Connection Management
 
@@ -362,6 +367,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - FleetDM team for the excellent API documentation
 - PowerShell community for best practices and patterns
 - Contributors and testers
+
+## Documentation
+
+- **📚 Full Documentation**: [https://jorgeasaurus.github.io/FleetDM-PowerShell/](https://jorgeasaurus.github.io/FleetDM-PowerShell/)
+- **Built-in Help**: Use `Get-Help <cmdlet-name> -Full` for detailed cmdlet documentation
+- **Interactive Viewer**: Run `./Show-Documentation.ps1` for local documentation browsing
 
 ## Support
 
