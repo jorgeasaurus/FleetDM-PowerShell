@@ -248,6 +248,21 @@ Describe "Invoke-FleetDMMethod Tests" {
     }
     
     Context "Type Tagging" {
+        BeforeEach {
+            # Mock the Add-FleetTypeName helper to actually add the type
+            Mock -CommandName Add-FleetTypeName -ModuleName FleetDM-PowerShell -MockWith {
+                param($InputObject, $TypeName)
+                if ($InputObject) {
+                    foreach ($obj in $InputObject) {
+                        if ($obj -and $obj.PSObject) {
+                            $obj.PSObject.TypeNames.Insert(0, $TypeName)
+                        }
+                    }
+                }
+                return $InputObject
+            }
+        }
+        
         It "Should tag host objects correctly" {
             $result = Invoke-FleetDMMethod -Endpoint "hosts" -Method GET -QueryParameters @{per_page = 1}
             

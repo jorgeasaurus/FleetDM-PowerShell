@@ -39,3 +39,7 @@ secrets.json
 local.settings.json
 test.settings.json
 claude.md
+IntuneScripts.code-workspace
+.gitignore
+.claude/settings.local.json
+CHANGELOG.md

@@ -56,6 +56,12 @@ Write-Host "  - Copying Private functions"
 $privatePath = Join-Path $OutputModuleDir 'Private'
 Copy-Item -Path (Join-Path $ProjectRoot 'Private') -Destination $OutputModuleDir -Recurse -Force
 
+# Copy help files if they exist
+if (Test-Path (Join-Path $ProjectRoot "en-US")) {
+    Write-Host "  - Copying help files"
+    Copy-Item -Path (Join-Path $ProjectRoot "en-US") -Destination $OutputModuleDir -Recurse -Force
+}
+
 Write-Host "✅ Module built successfully!" -ForegroundColor Green
 Write-Host "   Output: $OutputModuleDir" -ForegroundColor Gray
 

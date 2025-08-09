@@ -109,10 +109,6 @@ function Invoke-FleetDMMethod {
             $requestParams['FollowPagination'] = $true
         }
         
-        if ($Raw) {
-            $requestParams['Raw'] = $true
-        }
-        
         try {
             $result = Invoke-FleetDMRequest @requestParams
             
@@ -120,75 +116,46 @@ function Invoke-FleetDMMethod {
             
             # Try to add type information if we can identify the object type
             if (-not $Raw -and $result) {
-                # Attempt to identify and tag common object types
-                switch -Regex ($Endpoint) {
-                    '^hosts?(/|$)' {
-                        if ($result.host) {
-                            $result.host.PSObject.TypeNames.Insert(0, 'FleetDM.Host')
-                        }
-                        elseif ($result.hosts) {
-                            $result.hosts | ForEach-Object {
-                                $_.PSObject.TypeNames.Insert(0, 'FleetDM.Host')
-                            }
-                        }
-                    }
-                    '^policies?(/|$)' {
-                        if ($result.policy) {
-                            $result.policy.PSObject.TypeNames.Insert(0, 'FleetDM.Policy')
-                        }
-                        elseif ($result.policies) {
-                            $result.policies | ForEach-Object {
-                                $_.PSObject.TypeNames.Insert(0, 'FleetDM.Policy')
-                            }
-                        }
-                    }
-                    '^queries?(/|$)' {
-                        if ($result.query) {
-                            $result.query.PSObject.TypeNames.Insert(0, 'FleetDM.Query')
-                        }
-                        elseif ($result.queries) {
-                            $result.queries | ForEach-Object {
-                                $_.PSObject.TypeNames.Insert(0, 'FleetDM.Query')
-                            }
-                        }
-                    }
-                    '^software?(/|$)' {
-                        if ($result.software -and $result.software -is [array]) {
-                            $result.software | ForEach-Object {
-                                $_.PSObject.TypeNames.Insert(0, 'FleetDM.Software')
-                            }
-                        }
-                    }
-                    '^users?(/|$)' {
-                        if ($result.user) {
-                            $result.user.PSObject.TypeNames.Insert(0, 'FleetDM.User')
-                        }
-                        elseif ($result.users) {
-                            $result.users | ForEach-Object {
-                                $_.PSObject.TypeNames.Insert(0, 'FleetDM.User')
-                            }
-                        }
-                    }
-                    '^teams?(/|$)' {
-                        if ($result.team) {
-                            $result.team.PSObject.TypeNames.Insert(0, 'FleetDM.Team')
-                        }
-                        elseif ($result.teams) {
-                            $result.teams | ForEach-Object {
-                                $_.PSObject.TypeNames.Insert(0, 'FleetDM.Team')
-                            }
-                        }
-                    }
-                    '^labels?(/|$)' {
-                        if ($result.label) {
-                            $result.label.PSObject.TypeNames.Insert(0, 'FleetDM.Label')
-                        }
-                        elseif ($result.labels) {
-                            $result.labels | ForEach-Object {
-                                $_.PSObject.TypeNames.Insert(0, 'FleetDM.Label')
-                            }
-                        }
-                    }
+                # For collections, add type information to the nested data
+                if ($result.PSObject.Properties.Name -contains 'hosts') {
+                    $result.hosts | Add-FleetTypeName -TypeName 'FleetDM.Host'
+                }
+                elseif ($result.PSObject.Properties.Name -contains 'policies') {
+                    $result.policies | Add-FleetTypeName -TypeName 'FleetDM.Policy'
+                }
+                elseif ($result.PSObject.Properties.Name -contains 'queries') {
+                    $result.queries | Add-FleetTypeName -TypeName 'FleetDM.Query'
+                }
+                elseif ($result.PSObject.Properties.Name -contains 'software') {
+                    $result.software | Add-FleetTypeName -TypeName 'FleetDM.Software'
+                }
+                elseif ($result.PSObject.Properties.Name -contains 'users') {
+                    $result.users | Add-FleetTypeName -TypeName 'FleetDM.User'
+                }
+                elseif ($result.PSObject.Properties.Name -contains 'teams') {
+                    $result.teams | Add-FleetTypeName -TypeName 'FleetDM.Team'
+                }
+                elseif ($result.PSObject.Properties.Name -contains 'labels') {
+                    $result.labels | Add-FleetTypeName -TypeName 'FleetDM.Label'
+                }
+                # For single objects
+                elseif ($result.PSObject.Properties.Name -contains 'host') {
+                    $result.host | Add-FleetTypeName -TypeName 'FleetDM.Host'
+                }
+                elseif ($result.PSObject.Properties.Name -contains 'policy') {
+                    $result.policy | Add-FleetTypeName -TypeName 'FleetDM.Policy'
+                }
+                elseif ($result.PSObject.Properties.Name -contains 'query') {
+                    $result.query | Add-FleetTypeName -TypeName 'FleetDM.Query'
+                }
+                elseif ($result.PSObject.Properties.Name -contains 'user') {
+                    $result.user | Add-FleetTypeName -TypeName 'FleetDM.User'
+                }
+                elseif ($result.PSObject.Properties.Name -contains 'team') {
+                    $result.team | Add-FleetTypeName -TypeName 'FleetDM.Team'
+                }
+                elseif ($result.PSObject.Properties.Name -contains 'label') {
+                    $result.label | Add-FleetTypeName -TypeName 'FleetDM.Label'
                 }
             }
             

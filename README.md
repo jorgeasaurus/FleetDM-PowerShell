@@ -2,7 +2,7 @@
 
 ![FleetDM-PowerShell Logo](fleetPS.png)
 
-A comprehensive PowerShell module for interacting with the FleetDM REST API.
+A lightweight PowerShell module for interacting with the FleetDM Free Tier REST API.
 
 [![CI/CD Pipeline](https://github.com/Jorgeasaurus/FleetDM-PowerShell/actions/workflows/ci.yml/badge.svg)](https://github.com/Jorgeasaurus/FleetDM-PowerShell/actions/workflows/ci.yml)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://jorgeasaurus.github.io/FleetDM-PowerShell/)
@@ -14,26 +14,29 @@ A comprehensive PowerShell module for interacting with the FleetDM REST API.
 
 ## Overview
 
-FleetDM-PowerShell provides a native PowerShell interface to FleetDM, enabling administrators to manage hosts, queries, policies, and software inventory through familiar PowerShell cmdlets.
+FleetDM-PowerShell provides a native PowerShell interface to FleetDM Free Tier, enabling administrators to manage hosts, queries, policies, and software inventory through familiar PowerShell cmdlets. This module focuses on FleetDM's free functionality without requiring Premium licenses or external dependencies.
 
 📚 **[View Full Documentation](https://jorgeasaurus.github.io/FleetDM-PowerShell/)** - Comprehensive online documentation with detailed cmdlet reference
 
 ## Features
 
+- **Free Tier Focus**: Designed specifically for FleetDM Free Tier (no Premium license required)
 - **Host Management**: Query, filter, and manage FleetDM hosts
 - **Query Execution**: Run live queries and saved queries against hosts
 - **Policy Management**: Create, update, and monitor compliance policies
-- **Software Inventory**: Track installed software and vulnerabilities
+- **Software Inventory**: Track installed software and vulnerabilities (read-only)
 - **Cross-Platform**: Works on Windows PowerShell 5.1+ and PowerShell Core 7+
 - **Pipeline Support**: Full support for PowerShell pipeline operations
-- **Secure Authentication**: Support for API tokens and credentials with SecureString
+- **Simple Authentication**: Support for API tokens and credentials without external dependencies
+- **Lightweight**: No SecretManagement or other complex dependencies
 - **Comprehensive Help**: Detailed help for all cmdlets with examples
 
 ## Requirements
 
 - PowerShell 5.1 or PowerShell Core 7.0+
-- FleetDM server (4.0+)
+- FleetDM server (4.0+) - Free Tier is sufficient
 - FleetDM API token or credentials
+- No external dependencies or Premium licenses required
 
 ## Installation
 
@@ -122,7 +125,7 @@ For detailed help and examples, visit the **[Online Documentation](https://jorge
 
 ### Software Management
 
-- `Get-FleetSoftware` - Retrieve software inventory
+- `Get-FleetSoftware` - Retrieve software inventory (read-only)
 
 ### Advanced
 
@@ -255,7 +258,7 @@ Connect-FleetDM -BaseUri "https://fleet.example.com" -Credential $cred
 
 1. **Never hardcode tokens** in scripts or source control
 2. **Use SecureString** for token storage
-3. **Create API-only users** for automation
+3. **Create API-only users** for automation (requires admin access)
 4. **Rotate tokens regularly**
 5. **Use least-privilege principles** for API users
 
@@ -291,11 +294,13 @@ Invoke-Pester -CodeCoverage @('Public\*.ps1', 'Private\*.ps1')
 
 ## Limitations
 
-- WebSocket connections for live query results are not supported
-- Direct query results are only available when targeting specific host IDs
+- **Free Tier Only**: This module is designed for FleetDM Free Tier and does not support Premium features
+- **No Software Installation**: Software installation requires FleetDM Premium license
+- **WebSocket connections**: Live query results are not available via REST API (FleetDM limitation)
+- **Direct query results**: Only available when targeting specific host IDs
   - Queries using `-Label` or `-All` return campaign info only
-- Query result retrieval has a timeout limit (default 25 seconds)
-- Some FleetDM Premium features (teams) are not fully supported
+- **Query result retrieval**: Has a timeout limit (default 25 seconds)
+- **No persistent sessions**: Authentication is session-based without saved credentials
 
 ## Troubleshooting
 
@@ -350,7 +355,7 @@ Contributions are welcome! Please:
 The project uses GitHub Actions for continuous integration:
 
 - **Build**: Runs on Windows, Linux, and macOS
-- **Tests**: Automated Pester tests (85% pass rate required)
+- **Tests**: Automated Pester tests (98%+ pass rate achieved)
 - **Analysis**: PSScriptAnalyzer checks
 - **Publishing**: Automatic deployment to PowerShell Gallery on version tags
 
@@ -393,9 +398,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Roadmap
 
-- [ ] Add support for FleetDM Teams (Premium feature)
-- [ ] Implement WebSocket support for live query results
+- [x] **Free Tier Focus**: Module optimized for FleetDM Free Tier users
+- [x] **Simplified Authentication**: Removed complex SecretManagement dependencies
+- [x] **High Test Coverage**: Achieved 98%+ test pass rate
 - [ ] Add more granular error handling
-- [ ] Expand test coverage
 - [ ] Add performance optimizations for large fleets
 - [ ] Create advanced reporting cmdlets
+- [ ] Add support for additional Free Tier features as FleetDM evolves

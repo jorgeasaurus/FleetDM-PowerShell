@@ -211,11 +211,10 @@ Describe "Invoke-FleetQuery" -Tags @('Unit', 'Queries') {
             }
         }
         
-        It "Should reject -All parameter for ad-hoc queries" {
-            # The function uses Write-Error instead of throw, so we need to capture the error
-            $ErrorActionPreference = 'Stop'
-            { Invoke-FleetQuery -Query "SELECT 1;" -All -ErrorAction Stop } | 
-                Should -Throw "*does not support running ad-hoc queries on all hosts*"
+        It "Should require at least one target" {
+            # The function now throws when no targets are specified
+            { Invoke-FleetQuery -Query "SELECT 1;" } | 
+                Should -Throw "*must specify at least one target*"
         }
     }
     
