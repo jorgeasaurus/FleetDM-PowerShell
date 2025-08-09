@@ -195,71 +195,36 @@ function Get-FleetHost {
                 per_page = $PerPage
             }
             
-            # Add optional parameters
-            if ($PSBoundParameters.ContainsKey('Page')) {
-                $queryParams['page'] = $Page
+            # Build query parameters using helper
+            $paramMapping = @{
+                'Page' = 'page'
+                'Status' = 'status'
+                'Hostname' = 'query'
+                'PolicyId' = 'policy_id'
+                'SoftwareId' = 'software_id'
+                'OSName' = 'os_name'
+                'OSVersion' = 'os_version'
+                'IncludeSoftware' = 'populate_software'
+                'IncludePolicies' = 'populate_policies'
+                'DisableFailingPolicies' = 'disable_failing_policies'
+                'DeviceMapping' = 'device_mapping'
+                'MDMId' = 'mdm_id'
+                'MDMEnrollmentStatus' = 'mdm_enrollment_status'
+                'MunkiIssueId' = 'munki_issue_id'
+                'LowDiskSpace' = 'low_disk_space'
+                'Label' = 'label_name'
+                'Id' = $null  # Exclude from query params
+                'PerPage' = $null  # Already handled above
             }
             
-            if ($Status) {
-                $queryParams['status'] = $Status
+            $additionalParams = ConvertTo-FleetQueryParameters -BoundParameters $PSBoundParameters -ParameterMapping $paramMapping
+            
+            # Merge with existing queryParams
+            foreach ($key in $additionalParams.Keys) {
+                $queryParams[$key] = $additionalParams[$key]
             }
             
-            if ($Hostname) {
-                $queryParams['query'] = $Hostname
-            }
-            
-            if ($PSBoundParameters.ContainsKey('PolicyId')) {
-                $queryParams['policy_id'] = $PolicyId
-            }
-            
-            if ($PSBoundParameters.ContainsKey('SoftwareId')) {
-                $queryParams['software_id'] = $SoftwareId
-            }
-            
-            if ($OSName) {
-                $queryParams['os_name'] = $OSName
-            }
-            
-            if ($OSVersion) {
-                $queryParams['os_version'] = $OSVersion
-            }
-            
-            if ($IncludeSoftware) {
-                $queryParams['populate_software'] = 'true'
-            }
-            
-            if ($IncludePolicies) {
-                $queryParams['populate_policies'] = 'true'
-            }
-            
-            if ($DisableFailingPolicies) {
-                $queryParams['disable_failing_policies'] = 'true'
-            }
-            
-            if ($DeviceMapping) {
-                $queryParams['device_mapping'] = 'true'
-            }
-            
-            if ($MDMId) {
-                $queryParams['mdm_id'] = $MDMId
-            }
-            
-            if ($MDMEnrollmentStatus) {
-                $queryParams['mdm_enrollment_status'] = $MDMEnrollmentStatus
-            }
-            
-            if ($PSBoundParameters.ContainsKey('MunkiIssueId')) {
-                $queryParams['munki_issue_id'] = $MunkiIssueId
-            }
-            
-            if ($PSBoundParameters.ContainsKey('LowDiskSpace')) {
-                $queryParams['low_disk_space'] = $LowDiskSpace
-            }
-            
-            if ($Label) {
-                $queryParams['label_name'] = $Label
-            }
-            
+            # Handle special cases
             if ($After) {
                 $queryParams['after'] = $After.ToString('yyyy-MM-ddTHH:mm:ssZ')
             }

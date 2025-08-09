@@ -52,28 +52,17 @@ function Remove-FleetHost {
     )
     
     begin {
-        $hostIds = @()
         $removedHosts = @()
         $failedHosts = @()
+        $processedCount = 0
     }
     
     process {
-        # Collect all host IDs from pipeline
+        # Process each host as it arrives from the pipeline
         foreach ($hostId in $Id) {
-            $hostIds += $hostId
-        }
-    }
-    
-    end {
-        if ($hostIds.Count -eq 0) {
-            Write-Warning "No host IDs provided"
-            return
-        }
-        
-        Write-Verbose "Preparing to remove $($hostIds.Count) host(s)"
-        
-        # Process each host
-        foreach ($hostId in $hostIds) {
+            $processedCount++
+            Write-Verbose "Processing host ID: $hostId"
+            
             try {
                 # Get host details for confirmation message
                 $hostDetails = $null
@@ -110,7 +99,7 @@ function Remove-FleetHost {
                     
                     $removedHosts += $result
                     
-                    Write-Host "Successfully removed host ID: $hostId" -ForegroundColor Green
+                    Write-Verbose "Successfully removed host ID: $hostId"
                     if ($hostDetails) {
                         Write-Verbose "Removed host: $($hostDetails.hostname) ($($hostDetails.platform))"
                     }
@@ -131,24 +120,27 @@ function Remove-FleetHost {
                 Write-Error "Failed to remove host ID $hostId`: $_"
             }
         }
+    }
+    
+    end {
+        if ($processedCount -eq 0) {
+            Write-Warning "No host IDs provided"
+            return
+        }
         
         # Return summary
         $summary = [PSCustomObject]@{
             PSTypeName = 'FleetDM.HostRemovalSummary'
-            TotalRequested = $hostIds.Count
+            TotalRequested = $processedCount
             SuccessfullyRemoved = $removedHosts.Count
             Failed = $failedHosts.Count
             RemovedHosts = $removedHosts
             FailedHosts = $failedHosts
         }
         
-        # Display summary
-        if ($removedHosts.Count -gt 0) {
-            Write-Host "`nRemoval Summary:" -ForegroundColor Yellow
-            Write-Host "  Successfully removed: $($removedHosts.Count)" -ForegroundColor Green
-            if ($failedHosts.Count -gt 0) {
-                Write-Host "  Failed: $($failedHosts.Count)" -ForegroundColor Red
-            }
+        # Display summary using Write-Verbose
+        if ($removedHosts.Count -gt 0 -or $failedHosts.Count -gt 0) {
+            Write-Verbose "Removal Summary: Successfully removed: $($removedHosts.Count), Failed: $($failedHosts.Count)"
         }
         
         return $summary

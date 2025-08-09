@@ -5,7 +5,7 @@ title: Home
 
 # FleetDM-PowerShell Documentation
 
-Welcome to the FleetDM-PowerShell module documentation. This module provides comprehensive PowerShell cmdlets for managing and interacting with FleetDM instances through the REST API.
+Welcome to the FleetDM-PowerShell module documentation. This lightweight module provides PowerShell cmdlets for managing and interacting with FleetDM Free Tier instances through the REST API, without requiring Premium licenses or external dependencies.
 
 ## Quick Start
 

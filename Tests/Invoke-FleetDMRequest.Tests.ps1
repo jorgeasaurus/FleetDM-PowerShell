@@ -306,6 +306,19 @@ Describe "Invoke-FleetDMRequest" -Tags @('Unit', 'Core') {
                     }
                 }
                 
+                Mock Get-FleetPaginatedData {
+                    param($Response, [switch]$ReturnMetadata)
+                    
+                    if ($ReturnMetadata) {
+                        return @{
+                            Data = $Response.hosts
+                            HasMore = $Response.meta.has_next_results
+                            Metadata = $Response.meta
+                        }
+                    }
+                    return $Response.hosts
+                }
+                
                 $result = Invoke-FleetDMRequest -Endpoint "hosts" -FollowPagination
                 
                 $result | Should -HaveCount 2
@@ -350,6 +363,19 @@ Describe "Invoke-FleetDMRequest" -Tags @('Unit', 'Core') {
                             meta = @{ has_next_results = $true }
                         }
                     }
+                }
+                
+                Mock Get-FleetPaginatedData {
+                    param($Response, [switch]$ReturnMetadata)
+                    
+                    if ($ReturnMetadata) {
+                        return @{
+                            Data = $Response.hosts
+                            HasMore = $Response.meta.has_next_results
+                            Metadata = $Response.meta
+                        }
+                    }
+                    return $Response.hosts
                 }
                 
                 $queryParams = @{ status = "online" }
@@ -407,16 +433,16 @@ Describe "Invoke-FleetDMRequest" -Tags @('Unit', 'Core') {
         }
     }
     
-    Context "Raw Output" {
-        It "Should return raw response when Raw is specified" {
+    Context "Response Handling" {
+        It "Should return response data directly" {
             InModuleScope FleetDM-PowerShell {
                 Mock Invoke-RestMethod {
-                    return @{ raw = "data" }
+                    return @{ data = "test" }
                 }
                 
-                $result = Invoke-FleetDMRequest -Endpoint "hosts" -Raw
+                $result = Invoke-FleetDMRequest -Endpoint "hosts"
                 
-                $result.raw | Should -Be "data"
+                $result.data | Should -Be "test"
             }
         }
     }

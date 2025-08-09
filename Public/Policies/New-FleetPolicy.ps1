@@ -111,7 +111,7 @@ function New-FleetPolicy {
                     # Add calculated properties if host counts are available
                     $result.policy = Add-FleetPolicyCalculatedProperties -Policy $result.policy
                     
-                    Write-Host "✅ Successfully created policy '$Name' (ID: $($result.policy.id))" -ForegroundColor Green
+                    Write-Verbose "Successfully created policy '$Name' (ID: $($result.policy.id))"
                     
                     return $result.policy
                 }

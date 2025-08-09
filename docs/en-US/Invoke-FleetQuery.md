@@ -14,14 +14,14 @@ Executes a live query on FleetDM hosts
 
 ### Query (Default)
 ```
-Invoke-FleetQuery -Query <String> [-HostId <Int32[]>] [-Label <String[]>] [-All] [-Wait] [-MaxWaitTime <Int32>]
+Invoke-FleetQuery -Query <String> [-HostId <Int32[]>] [-Label <String[]>] [-Wait] [-MaxWaitTime <Int32>]
  [-ProgressAction <ActionPreference>] [<CommonParameters>]
 ```
 
 ### QueryId
 ```
-Invoke-FleetQuery -QueryId <Int32> [-HostId <Int32[]>] [-Label <String[]>] [-All] [-Wait]
- [-MaxWaitTime <Int32>] [-ProgressAction <ActionPreference>] [<CommonParameters>]
+Invoke-FleetQuery -QueryId <Int32> [-HostId <Int32[]>] [-Label <String[]>] [-Wait] [-MaxWaitTime <Int32>]
+ [-ProgressAction <ActionPreference>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -130,21 +130,6 @@ Aliases:
 Required: False
 Position: Named
 Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -All
-Run the query on all hosts in the fleet (not supported by FleetDM API for ad-hoc queries)
-
-```yaml
-Type: SwitchParameter
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: Named
-Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```

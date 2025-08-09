@@ -21,9 +21,6 @@ function Invoke-FleetDMRequest {
     
     .PARAMETER FollowPagination
         If specified, automatically follows pagination to retrieve all results
-    
-    .PARAMETER Raw
-        If specified, returns the raw response without processing
     #>
     [CmdletBinding()]
     param(
@@ -38,9 +35,7 @@ function Invoke-FleetDMRequest {
         
         [hashtable]$QueryParameters,
         
-        [switch]$FollowPagination,
-        
-        [switch]$Raw
+        [switch]$FollowPagination
     )
     
     begin {
@@ -110,55 +105,25 @@ function Invoke-FleetDMRequest {
                     
                     $response = Invoke-RestMethod @requestParams
                     
-                    # Add results to collection
-                    if ($response -is [System.Management.Automation.PSCustomObject]) {
-                        # Response is an object with data and metadata
-                        if ($response.PSObject.Properties.Name -contains 'hosts') {
-                            $allResults += $response.hosts
-                        }
-                        elseif ($response.PSObject.Properties.Name -contains 'policies') {
-                            $allResults += $response.policies
-                        }
-                        elseif ($response.PSObject.Properties.Name -contains 'queries') {
-                            $allResults += $response.queries
-                        }
-                        elseif ($response.PSObject.Properties.Name -contains 'software') {
-                            $allResults += $response.software
-                        }
-                        elseif ($response.PSObject.Properties.Name -contains 'users') {
-                            $allResults += $response.users
-                        }
-                        elseif ($response.PSObject.Properties.Name -contains 'teams') {
-                            $allResults += $response.teams
-                        }
-                        else {
-                            # If no recognized collection property, add the whole response
-                            $allResults += $response
-                        }
-                        
-                        # Check for more pages
-                        if ($response.meta -and $response.meta.has_next_results) {
-                            $page++
-                        }
-                        else {
-                            $hasMore = $false
-                        }
+                    # Extract data and check for more pages using helper
+                    $pageData = Get-FleetPaginatedData -Response $response -ReturnMetadata
+                    
+                    if ($pageData.Data) {
+                        $allResults += $pageData.Data
+                    }
+                    
+                    # Check if there are more pages
+                    if ($pageData.HasMore) {
+                        $page++
                     }
                     else {
-                        # Response is likely an array or simple object
-                        $allResults += $response
                         $hasMore = $false
                     }
                 }
                 
                 Write-Verbose "Retrieved $($allResults.Count) total items across $($page + 1) pages"
                 
-                if ($Raw) {
-                    return $allResults
-                }
-                else {
-                    return $allResults
-                }
+                return $allResults
             }
             else {
                 Write-Verbose "No pagination requested. Sending single request."
@@ -167,12 +132,7 @@ function Invoke-FleetDMRequest {
                 
                 Write-Verbose "Request completed successfully"
                 
-                if ($Raw) {
-                    return $response
-                }
-                else {
-                    return $response
-                }
+                return $response
             }
         }
         catch {

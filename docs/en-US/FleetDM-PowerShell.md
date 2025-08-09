@@ -1,49 +1,49 @@
 ---
 Module Name: FleetDM-PowerShell
 Module Guid: a7c4b8f3-2d1e-4f5a-9c8b-1e3d5a7f9b2c
-Download Help Link: {{ Update Download Link }}
-Help Version: {{ Please enter version of help manually (X.X.X.X) format }}
+Download Help Link: https://github.com/Jorgeasaurus/FleetDM-PowerShell/wiki
+Help Version: 2.0.0.0
 Locale: en-US
 ---
 
 # FleetDM-PowerShell Module
 ## Description
-{{ Fill in the Description }}
+Lightweight PowerShell module for FleetDM Free Tier API integration. Provides cmdlets for managing hosts, queries, policies, and software inventory without requiring Premium licenses or external dependencies.
 
 ## FleetDM-PowerShell Cmdlets
 ### [Connect-FleetDM](Connect-FleetDM.md)
-{{ Fill in the Description }}
+Establishes a connection to the FleetDM API
 
 ### [Disconnect-FleetDM](Disconnect-FleetDM.md)
-{{ Fill in the Description }}
+Disconnects from the FleetDM API
 
 ### [Get-FleetHost](Get-FleetHost.md)
-{{ Fill in the Description }}
+Retrieves information about FleetDM hosts
 
 ### [Get-FleetPolicy](Get-FleetPolicy.md)
-{{ Fill in the Description }}
+Retrieves FleetDM policies
 
 ### [Get-FleetQuery](Get-FleetQuery.md)
-{{ Fill in the Description }}
+Retrieves saved queries from FleetDM
 
 ### [Get-FleetSoftware](Get-FleetSoftware.md)
-{{ Fill in the Description }}
+Retrieves software inventory from FleetDM
 
 ### [Invoke-FleetDMMethod](Invoke-FleetDMMethod.md)
-{{ Fill in the Description }}
+Invokes a generic FleetDM API method
 
 ### [Invoke-FleetQuery](Invoke-FleetQuery.md)
-{{ Fill in the Description }}
+Executes a live query on FleetDM hosts
 
 ### [Invoke-FleetSavedQuery](Invoke-FleetSavedQuery.md)
-{{ Fill in the Description }}
+Executes a saved query on FleetDM hosts
 
 ### [New-FleetPolicy](New-FleetPolicy.md)
-{{ Fill in the Description }}
+Creates a new FleetDM policy
 
 ### [Remove-FleetHost](Remove-FleetHost.md)
-{{ Fill in the Description }}
+Removes a host from FleetDM
 
 ### [Set-FleetPolicy](Set-FleetPolicy.md)
-{{ Fill in the Description }}
+Updates an existing FleetDM policy
 

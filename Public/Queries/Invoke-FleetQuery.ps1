@@ -21,9 +21,6 @@ function Invoke-FleetQuery {
     .PARAMETER Label
         Array of label names to run the query on all hosts with those labels
     
-    .PARAMETER All
-        Run the query on all hosts in the fleet (not supported by FleetDM API for ad-hoc queries)
-    
     .PARAMETER Wait
         For saved queries (QueryId), returns results directly instead of starting a campaign.
         This parameter is deprecated for ad-hoc queries as they now always return results.
@@ -77,8 +74,6 @@ function Invoke-FleetQuery {
         
         [string[]]$Label,
         
-        [switch]$All,
-        
         [switch]$Wait,
         
         [ValidateRange(1, 300)]
@@ -100,12 +95,12 @@ function Invoke-FleetQuery {
     
     end {
         # Validate that we have at least one target
-        if (-not $hasTargets -and -not $Label -and -not $All) {
-            throw "You must specify at least one target: -HostId, -Label, or -All"
+        if (-not $hasTargets -and -not $Label) {
+            throw "You must specify at least one target: -HostId or -Label"
         }
         
         # For ad-hoc queries with specific host IDs, use the temporary query approach
-        if ($PSCmdlet.ParameterSetName -eq 'Query' -and $hostIds.Count -gt 0 -and -not $Label -and -not $All) {
+        if ($PSCmdlet.ParameterSetName -eq 'Query' -and $hostIds.Count -gt 0 -and -not $Label) {
             Write-Verbose "Creating temporary query for direct results"
             
             $tempQueryName = "TempQuery_$(Get-Date -Format 'yyyyMMdd_HHmmss')_$(Get-Random -Maximum 9999)"
@@ -160,17 +155,17 @@ function Invoke-FleetQuery {
         }
         
         # For saved queries with host IDs and Wait, use the direct result endpoint
-        if ($PSCmdlet.ParameterSetName -eq 'QueryId' -and $Wait -and $hostIds.Count -gt 0 -and -not $Label -and -not $All) {
+        if ($PSCmdlet.ParameterSetName -eq 'QueryId' -and $Wait -and $hostIds.Count -gt 0 -and -not $Label) {
             Write-Verbose "Using direct result endpoint for saved query $QueryId"
             
             # Redirect to Invoke-FleetSavedQuery for direct results
             return Invoke-FleetSavedQuery -QueryId $QueryId -HostId $hostIds
         }
         
-        # For labels, or -All, we need to use the campaign approach
+        # For labels, we need to use the campaign approach
         # as the direct results endpoint only works with specific host IDs
-        if ($Label -or $All) {
-            Write-Warning "Direct results are not available when using -Label or -All parameters. Campaign will be started instead."
+        if ($Label) {
+            Write-Warning "Direct results are not available when using -Label parameter. Campaign will be started instead."
         }
         
         # Build the request body
@@ -189,14 +184,6 @@ function Invoke-FleetQuery {
         else {
             $body['query_id'] = $QueryId
             Write-Verbose "Executing saved query ID via campaign: $QueryId"
-        }
-        
-        # Handle -All parameter
-        if ($All) {
-            # FleetDM API doesn't support running ad-hoc queries on all hosts
-            # You must specify at least one host, team, or label
-            Write-Error "The FleetDM API does not support running ad-hoc queries on all hosts without specifying targets. Please specify host IDs, team IDs, or labels."
-            return
         }
         
         if ($body.selected) {

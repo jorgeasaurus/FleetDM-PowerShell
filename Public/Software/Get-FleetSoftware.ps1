@@ -146,12 +146,10 @@ function Get-FleetSoftware {
             }
             
             if ($Version) {
-                # Note: API might not support version filtering directly
                 Write-Verbose "Version filtering will be applied client-side"
             }
             
             if ($Cve) {
-                # Note: API might require different parameter name
                 $queryParams['cve'] = $Cve
             }
             
