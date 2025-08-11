@@ -16,6 +16,10 @@ A lightweight PowerShell module for interacting with the FleetDM Free Tier REST 
 
 FleetDM-PowerShell provides a native PowerShell interface to FleetDM Free Tier, enabling administrators to manage hosts, queries, policies, and software inventory through familiar PowerShell cmdlets. This module focuses on FleetDM's free functionality without requiring Premium licenses or external dependencies.
 
+## Download Statistics
+
+![Download Statistics](./download-chart.png)
+
 📚 **[View Full Documentation](https://jorgeasaurus.github.io/FleetDM-PowerShell/)** - Comprehensive online documentation with detailed cmdlet reference
 
 ## Features

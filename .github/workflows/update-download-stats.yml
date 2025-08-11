@@ -1,0 +1,110 @@
+name: Update Download Statistics
+
+on:
+  schedule:
+    # Run daily at 00:00 UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch: # Allow manual trigger
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/update-download-stats.yml'
+
+jobs:
+  update-stats:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Setup PowerShell
+      shell: pwsh
+      run: |
+        # Install required modules
+        Install-Module -Name PowerShellGet -Force -Scope CurrentUser -AllowClobber
+    
+    
+    - name: Update download statistics
+      run: |
+        pwsh -File Track-PSGalleryDownloads.ps1 -ModuleName 'FleetDM-PowerShell'
+
+    - name: Generate chart with Python (Alternative - Better Charts)
+      run: |
+        python -m pip install --upgrade pip
+        pip install matplotlib pandas
+        
+        cat > generate_chart.py << 'EOF'
+        import json
+        import matplotlib.pyplot as plt
+        import matplotlib.dates as mdates
+        from datetime import datetime
+        import pandas as pd
+        
+        # Load data
+        with open('download-stats.json', 'r') as f:
+            data = json.load(f)
+        
+        # Extract data
+        dates = [datetime.strptime(entry['date'], '%Y-%m-%d') for entry in data['history']]
+        downloads = [entry['downloads'] for entry in data['history']]
+        
+        # Create figure with higher DPI for better quality
+        fig, ax = plt.subplots(figsize=(12, 6), dpi=100)
+        
+        # Plot data
+        ax.plot(dates, downloads, marker='o', linewidth=2, markersize=6, 
+                color='#0366d6', markerfacecolor='#0366d6', markeredgecolor='white', markeredgewidth=1.5)
+        
+        # Fill area under the line
+        ax.fill_between(dates, downloads, alpha=0.1, color='#0366d6')
+        
+        # Customize appearance
+        ax.set_xlabel('Date', fontsize=12)
+        ax.set_ylabel('Total Downloads', fontsize=12)
+        ax.set_title(f"{data['moduleName']} - PowerShell Gallery Downloads", fontsize=16, fontweight='bold')
+        
+        # Format x-axis
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+        ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+        plt.xticks(rotation=45, ha='right')
+        
+        # Add grid
+        ax.grid(True, alpha=0.3, linestyle='--')
+        ax.set_facecolor('#f6f8fa')
+        fig.patch.set_facecolor('white')
+        
+        # Add current download count as text
+        current_downloads = downloads[-1] if downloads else 0
+        ax.text(0.98, 0.98, f'Current: {current_downloads:,} downloads', 
+                transform=ax.transAxes, fontsize=12, fontweight='bold',
+                ha='right', va='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+        
+        # Tight layout
+        plt.tight_layout()
+        
+        # Save chart
+        plt.savefig('download-chart.png', bbox_inches='tight', facecolor='white', edgecolor='none')
+        plt.savefig('download-chart.svg', format='svg', bbox_inches='tight', facecolor='white', edgecolor='none')
+        
+        print(f"Charts generated successfully. Current downloads: {current_downloads}")
+        EOF
+        
+        python generate_chart.py
+    
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        git add download-stats.json download-stats.md download-chart.svg download-chart.png 2>/dev/null || true
+        
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "Update download statistics [skip ci]"
+          git push
+        fi
