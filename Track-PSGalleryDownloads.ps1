@@ -13,7 +13,7 @@ function Get-PSGalleryDownloadCount {
     try {
         $module = Find-Module -Name $ModuleName -Repository PSGallery -ErrorAction Stop
         return @{
-            Downloads = $module.AdditionalMetadata.downloadCount
+            Downloads = [int]$module.AdditionalMetadata.downloadCount
             Version = $module.Version.ToString()
         }
     }
@@ -25,9 +25,20 @@ function Get-PSGalleryDownloadCount {
 
 # Load existing data or create new structure
 if (Test-Path $DataFile) {
-    $stats = Get-Content $DataFile | ConvertFrom-Json
-    # Convert to ArrayList for easier manipulation
-    $stats.history = [System.Collections.ArrayList]@($stats.history)
+    $statsJson = Get-Content $DataFile -Raw | ConvertFrom-Json
+    # Ensure history is an array and convert to ArrayList
+    $historyArray = if ($statsJson.history -is [Array]) {
+        $statsJson.history
+    } elseif ($statsJson.history) {
+        # If history is a single object, convert to array
+        @($statsJson.history)
+    } else {
+        @()
+    }
+    $stats = @{
+        moduleName = $statsJson.moduleName
+        history = [System.Collections.ArrayList]@($historyArray)
+    }
 } else {
     $stats = @{
         moduleName = $ModuleName
@@ -60,8 +71,12 @@ if ($todayEntry) {
 # Sort by date
 $stats.history = $stats.history | Sort-Object { [datetime]$_.date }
 
-# Save updated data
-$stats | ConvertTo-Json -Depth 10 | Set-Content $DataFile
+# Save updated data - ensure history remains an array
+$jsonOutput = @{
+    moduleName = $stats.moduleName
+    history = @($stats.history)
+} | ConvertTo-Json -Depth 10
+$jsonOutput | Set-Content $DataFile
 
 Write-Host "Current download count: $($currentStats.Downloads)"
 Write-Host "Data saved to $DataFile"
