@@ -1,14 +1,15 @@
 ## 📊 Download Statistics
 
 **Module:** `FleetDM-PowerShell`  
-**Current Downloads:** **170**  
+**Current Downloads:** **171**  
 **Latest Version:** `2.0.1`  
-**Last Updated:** 2025-10-01
+**Last Updated:** 2025-10-02
 
 ### Recent History
 
 | Date | Downloads | Version |
 |------|-----------|---------|
+| 2025-10-02 | 171 | 2.0.1 |
 | 2025-10-01 | 170 | 2.0.1 |
 | 2025-09-30 | 169 | 2.0.1 |
 | 2025-09-29 | 168 | 2.0.1 |
@@ -18,4 +19,3 @@
 | 2025-09-25 | 163 | 2.0.1 |
 | 2025-09-24 | 162 | 2.0.1 |
 | 2025-09-23 | 161 | 2.0.1 |
-| 2025-09-22 | 160 | 2.0.1 |
