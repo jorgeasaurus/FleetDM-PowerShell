@@ -264,6 +264,11 @@
       "date": "2025-10-02",
       "version": "2.0.1",
       "downloads": 171
+    },
+    {
+      "version": "2.0.1",
+      "downloads": 172,
+      "date": "2025-10-03"
     }
   ],
   "moduleName": "FleetDM-PowerShell"
