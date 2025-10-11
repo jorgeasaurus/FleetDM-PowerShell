@@ -1,5 +1,4 @@
 {
-  "moduleName": "FleetDM-PowerShell",
   "history": [
     {
       "date": "2025-08-11",
@@ -305,6 +304,12 @@
       "date": "2025-10-10",
       "version": "2.0.1",
       "downloads": 185
+    },
+    {
+      "date": "2025-10-11",
+      "version": "2.0.1",
+      "downloads": 186
     }
-  ]
+  ],
+  "moduleName": "FleetDM-PowerShell"
 }
