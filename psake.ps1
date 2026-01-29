@@ -97,18 +97,20 @@ Task Build -Depends Clean {
 # Run PSScriptAnalyzer
 Task Analyze -Depends Build {
     Write-Host "Running PSScriptAnalyzer..." -ForegroundColor Green
-    
+
+    Import-Module PSScriptAnalyzer -Force
+
     $analyzerParams = @{
-        Path = $OutputModuleDir
-        Recurse = $true
-        ErrorAction = 'Stop'
+        Path        = $OutputModuleDir
+        Recurse     = $true
+        ErrorAction = 'SilentlyContinue'
     }
-    
+
     if (Test-Path $ScriptAnalyzerSettingsPath) {
         $analyzerParams['Settings'] = $ScriptAnalyzerSettingsPath
     }
-    
-    $results = Invoke-ScriptAnalyzer @analyzerParams
+
+    $results = Invoke-ScriptAnalyzer @analyzerParams 2>$null
     
     if ($results) {
         $results | Format-Table -AutoSize

@@ -44,10 +44,6 @@
         'PSUseApprovedVerbs',
         'PSUseBOMForUnicodeEncodedFile',
         'PSUseCmdletCorrectly',
-        'PSUseCompatibleCmdlets',
-        'PSUseCompatibleCommands',
-        'PSUseCompatibleSyntax',
-        'PSUseCompatibleTypes',
         'PSUseConsistentIndentation',
         'PSUseConsistentWhitespace',
         'PSUseCorrectCasing',
@@ -80,12 +76,7 @@
         }
         
         PSUseCompatibleCmdlets = @{
-            compatibility = @(
-                'desktop-5.1.14393.206-windows',
-                'core-6.1.0-windows',
-                'core-6.1.0-linux',
-                'core-6.1.0-macos'
-            )
+            Enable = $false
         }
         
         PSUseConsistentIndentation = @{

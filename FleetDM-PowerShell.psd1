@@ -1,6 +1,6 @@
 @{
     RootModule = 'FleetDM-PowerShell.psm1'
-    ModuleVersion = '2.0.1'
+    ModuleVersion = '2.1.0'
     GUID = 'a7c4b8f3-2d1e-4f5a-9c8b-1e3d5a7f9b2c'
     Author = 'Jorge Suarez'
     CompanyName = 'Jorgeasaurus'
@@ -22,7 +22,8 @@
         'New-FleetPolicy',
         'Set-FleetPolicy',
         'Get-FleetSoftware',
-        'Invoke-FleetDMMethod'
+        'Invoke-FleetDMMethod',
+        'ConvertFrom-JamfXmlToFleetYaml'
     )
 
     # Cmdlets to export from this module
@@ -41,7 +42,7 @@
             LicenseUri = 'https://github.com/Jorgeasaurus/FleetDM-PowerShell/blob/main/LICENSE'
             ProjectUri = 'https://github.com/Jorgeasaurus/FleetDM-PowerShell'
             IconUri = ''
-            ReleaseNotes = 'Version 2.0.1 - Fixed test suite compatibility issues. All tests now pass across Windows, macOS, and Linux.'
+            ReleaseNotes = 'Version 2.1.0 - Added ConvertFrom-JamfXmlToFleetYaml function for converting Jamf Pro exports to FleetDM GitOps format.'
             Prerelease = ''
             RequireLicenseAcceptance = $false
             ExternalModuleDependencies = @()
