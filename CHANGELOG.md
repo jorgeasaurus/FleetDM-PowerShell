@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- The build pins psake 4.9.1 and BuildHelpers 2.0.16. psake 5, published after the last green `main` run, defines a parameterless `Set-BuildEnvironment` that rejected `-Force` inside the build tasks.
 - Query strings are encoded without `System.Web`, null parameters are omitted, and collections are not serialized as `System.Object[]`.
 - Request bodies keep one-element arrays as JSON arrays so Windows PowerShell 5.1 does not unwrap values such as `host_ids`.
 - Pagination strips a caller-supplied `page` parameter, stops on an empty page, and recognizes current collection names including `software_titles`, `fleets`, and `scripts`.
