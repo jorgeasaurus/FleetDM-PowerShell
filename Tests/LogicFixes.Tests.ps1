@@ -237,7 +237,7 @@ Describe 'Host, removal, and software fixes' -Tag 'Unit' {
                         versions = @(
                             [PSCustomObject]@{
                                 version = '1.0'
-                                vulnerabilities = @([PSCustomObject]@{ cve = 'CVE-2024-1111' })
+                                vulnerabilities = @('CVE-2024-1111')
                             }
                         )
                     }
@@ -247,7 +247,7 @@ Describe 'Host, removal, and software fixes' -Tag 'Unit' {
                         versions = @(
                             [PSCustomObject]@{
                                 version = '2.0'
-                                vulnerabilities = @([PSCustomObject]@{ cve = 'CVE-2024-2222' })
+                                vulnerabilities = @('CVE-2024-2222')
                             }
                         )
                     }
@@ -258,6 +258,8 @@ Describe 'Host, removal, and software fixes' -Tag 'Unit' {
         $result = @(Get-FleetSoftware -AvailableForInstall -Name 'Chrome' -Cve 'CVE-2024-1111' -Page 0)
         $result.Count | Should -Be 1
         $result[0].id | Should -Be 1
+        $result[0].cve_count | Should -Be 1
+        $result[0].highest_severity | Should -Be 'none'
         Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -ParameterFilter {
             $Endpoint -eq 'software/titles' -and
             $QueryParameters.query -eq 'Chrome' -and

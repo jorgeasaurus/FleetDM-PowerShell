@@ -274,7 +274,9 @@ function Get-FleetSoftware {
                     $matchedCve = $false
                     foreach ($softwareVersion in @($_.versions)) {
                         foreach ($vulnerability in @($softwareVersion.vulnerabilities)) {
-                            if ($vulnerability.cve -like "*$Cve*") {
+                            # Titles return CVE ids as strings. Version inventory uses objects with a cve property.
+                            $cveId = if ($vulnerability -is [string]) { $vulnerability } else { [string]$vulnerability.cve }
+                            if ($cveId -like "*$Cve*") {
                                 $matchedCve = $true
                             }
                         }
@@ -323,11 +325,12 @@ function Get-FleetSoftware {
                         $cveCount = $vulnerabilities.Count
                         Add-Member -InputObject $result[$i] -MemberType NoteProperty -Name 'cve_count' -Value $cveCount -Force
                         
-                        # Find highest severity - handle cases where severity might be missing
-                        $severities = @($vulnerabilities | Where-Object { $_.severity } | ForEach-Object { $_.severity })
+                        # Title CVE ids are strings and have no severity. Version rows are objects.
+                        $vulnerabilityObjects = @($vulnerabilities | Where-Object { $_ -isnot [string] })
+                        $severities = @($vulnerabilityObjects | Where-Object { $_.severity } | ForEach-Object { $_.severity })
                         $highestSeverity = 'none'
-                        if ($severities.Count -eq 0 -and $vulnerabilities.Count -gt 0) {
-                            # Has vulnerabilities but no severity info
+                        if ($severities.Count -eq 0 -and $vulnerabilityObjects.Count -gt 0) {
+                            # Has vulnerability objects but no severity info
                             $highestSeverity = 'medium'
                         }
                         elseif ($severities -contains 'critical') { $highestSeverity = 'critical' }
