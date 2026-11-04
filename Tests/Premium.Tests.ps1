@@ -52,6 +52,7 @@ Describe 'Fleet Premium cmdlets' -Tag 'Unit' {
                 }
                 '^scripts/run$' { return [PSCustomObject]@{ execution_id = 'exec-1'; host_id = $Body.host_id } }
                 'automation_activities' { return @{ activities = @([PSCustomObject]@{ id = 7; activity_type = 'ran_script' }) } }
+                '^fleets/\d+/policies$' { return @([PSCustomObject]@{ id = 12; name = 'Gatekeeper' }) }
                 '^automations/reset$' { return @{} }
                 '^config$' {
                     if ($Method -eq 'PATCH') { return @{ sso_settings = [PSCustomObject]$Body.sso_settings } }
@@ -173,7 +174,7 @@ Describe 'Fleet Premium cmdlets' -Tag 'Unit' {
         $activity[0].activity_type | Should -Be 'ran_script'
         Reset-FleetPolicyAutomation -PolicyId 12 -FleetId 3 -Confirm:$false | Out-Null
         Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -ParameterFilter {
-            $Endpoint -eq 'automations/reset' -and $Body.policy_ids -contains 12 -and $Body.fleet_ids -contains 3
+            $Endpoint -eq 'automations/reset' -and $Body.policy_ids -contains 12 -and $null -eq $Body.fleet_ids
         }
     }
 

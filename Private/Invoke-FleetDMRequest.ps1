@@ -90,6 +90,12 @@ function Invoke-FleetDMRequest {
                 $page = 0
                 $maxPages = 1000
                 $baseUri = Get-FleetUriWithoutPage -Uri $uri
+                $pageSize = 0
+                $pageSizeMatch = [regex]::Match($baseUri, '(?:^|[?&])per_page=(\d+)')
+                if ($pageSizeMatch.Success) {
+                    $pageSize = [int]$pageSizeMatch.Groups[1].Value
+                }
+                $previousFirstId = $null
 
                 while ($page -lt $maxPages) {
                     $separator = if ($baseUri.Contains('?')) { '&' } else { '?' }
@@ -111,8 +117,30 @@ function Invoke-FleetDMRequest {
                         $allResults.Add($item)
                     }
 
-                    if (-not $pageData.HasMore) {
-                        break
+                    $metadata = $pageData.Metadata
+                    $knowsNextPage = $false
+                    if ($metadata -is [System.Collections.IDictionary]) {
+                        $knowsNextPage = $metadata.ContainsKey('has_next_results')
+                    }
+                    elseif ($metadata -and ($metadata.PSObject.Properties.Name -contains 'has_next_results')) {
+                        $knowsNextPage = $true
+                    }
+                    if ($knowsNextPage) {
+                        if (-not $pageData.HasMore) {
+                            break
+                        }
+                    }
+                    else {
+                        # List fleets and some other routes omit meta.has_next_results.
+                        # Keep reading while a page is full, and stop if the next page repeats.
+                        if ($pageSize -le 0 -or $pageItems.Count -lt $pageSize) {
+                            break
+                        }
+                        $firstId = $pageItems[0].id
+                        if ($null -ne $previousFirstId -and $null -ne $firstId -and $firstId -eq $previousFirstId) {
+                            break
+                        }
+                        $previousFirstId = $firstId
                     }
 
                     $page++

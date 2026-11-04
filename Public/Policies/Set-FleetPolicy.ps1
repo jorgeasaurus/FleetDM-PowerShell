@@ -34,10 +34,10 @@ function Set-FleetPolicy {
         Fleet Premium. Enables calendar maintenance events when this fleet policy fails. Requires FleetId.
 
     .PARAMETER SoftwareTitleId
-        Fleet Premium. Installs this software title when the fleet policy fails. Requires FleetId.
+        Fleet Premium. Installs this software title when the fleet policy fails. Requires FleetId. Use 0 to remove an existing software automation.
 
     .PARAMETER ScriptId
-        Fleet Premium. Runs this script when the fleet policy fails. Requires FleetId.
+        Fleet Premium. Runs this script when the fleet policy fails. Requires FleetId. Use 0 to remove an existing script automation.
 
     .NOTES
         FleetId, Critical, and policy automations require Fleet Premium.
@@ -106,10 +106,10 @@ function Set-FleetPolicy {
 
         [bool]$CalendarEventsEnabled,
 
-        [ValidateRange(1, [int]::MaxValue)]
+        [ValidateRange(0, [int]::MaxValue)]
         [int]$SoftwareTitleId,
 
-        [ValidateRange(1, [int]::MaxValue)]
+        [ValidateRange(0, [int]::MaxValue)]
         [int]$ScriptId
     )
     

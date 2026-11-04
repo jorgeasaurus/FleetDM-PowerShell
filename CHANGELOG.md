@@ -28,6 +28,7 @@ Fleet Premium cmdlets. Each one documents the Premium requirement and turns HTTP
 - Scripts: `Get-FleetScript`, `Invoke-FleetScript`, `Remove-FleetScript` (`-FleetId` requires Premium; id and inline script runs are available in Fleet Free)
 - MDM: `Lock-FleetHost`, `Unlock-FleetHost`, `Invoke-FleetHostWipe`, `Get-FleetHostWipeStatus`, `Get-FleetDiskEncryption`, `Set-FleetDiskEncryption`, `Set-FleetOsUpdate`
 - Host wipe follows [Wipe host](https://fleetdm.com/docs/rest-api/rest-api#wipe-host). Company-owned Android is Fleet Free. macOS, Windows, iOS, iPadOS, Linux, and personal Android require Premium. Windows accepts `-WindowsWipeType` `doWipe` or `doWipeProtected`. Wipe progress is read from the host `mdm.device_status` and `mdm.pending_action` fields.
+- List routes that omit `meta.has_next_results` keep paging until a short page. macOS update changes keep the current fleet settings. `-MacOsMinimumVersion latest` requires `-MacOsDeadlineDays`. Policy automation reset sends only `policy_ids`. CVSS filters stay fractional. Title-only software filters use `/software/titles`. Automation ids of 0 clear a script or software automation.
 - Calendar maintenance windows: `Set-FleetCalendarEvent`
 - Policy automations: fleet policies via `-FleetId`, `-Critical`, `-CalendarEventsEnabled`, `-SoftwareTitleId`, and `-ScriptId` on `New-FleetPolicy` and `Set-FleetPolicy`; `Get-FleetPolicyAutomation`; `Reset-FleetPolicyAutomation`
 - SSO JIT provisioning: `Set-FleetJitProvisioning`

@@ -5,7 +5,7 @@ function Remove-FleetSoftwarePackage {
 
     .DESCRIPTION
         Sends DELETE /api/v1/fleet/software/titles/{id}/available_for_install.
-        Installed copies on hosts are left in place.
+        The published contract says this removes the installer from Fleet and does not uninstall copies already on hosts.
 
     .PARAMETER SoftwareTitleId
         Software title ID.

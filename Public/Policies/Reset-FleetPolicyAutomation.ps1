@@ -4,15 +4,16 @@ function Reset-FleetPolicyAutomation {
         Resets failing-policy automation state.
 
     .DESCRIPTION
-        Sends POST /api/v1/fleet/automations/reset.
+        Sends POST /api/v1/fleet/automations/reset with policy_ids only.
         Hosts that are still failing are treated as newly failing on the next run.
-        FleetIds limits the reset to those fleets and requires Fleet Premium.
+        Fleet's fleet_ids field adds every policy on those fleets to the reset, so this cmdlet does not send it.
+        When FleetId is set, each id is checked against that fleet's policies and only the matching policy_ids are sent.
 
     .PARAMETER PolicyId
         Policy IDs to reset.
 
     .PARAMETER FleetId
-        Fleet Premium. Limits the reset to these fleets.
+        Fleet Premium. Policy IDs must belong to one of these fleets. The request still sends only policy_ids.
 
     .EXAMPLE
         Reset-FleetPolicyAutomation -PolicyId 1, 2, 3
@@ -38,10 +39,29 @@ function Reset-FleetPolicyAutomation {
     )
 
     process {
-        $body = @{ policy_ids = @($PolicyId) }
+        $selectedIds = @($PolicyId)
         if ($PSBoundParameters.ContainsKey('FleetId')) {
-            $body['fleet_ids'] = @($FleetId)
+            $fleetPolicyIds = New-Object System.Collections.Generic.List[int]
+            foreach ($fleet in $FleetId) {
+                $listed = Invoke-FleetDMRequest -Endpoint "fleets/$fleet/policies" -QueryParameters @{ per_page = 100 } -FollowPagination
+                if ($listed -and $listed.PSObject.Properties.Name -contains 'policies') {
+                    $listed = $listed.policies
+                }
+                foreach ($policy in @($listed)) {
+                    if ($null -ne $policy.id) {
+                        $fleetPolicyIds.Add([int]$policy.id)
+                    }
+                }
+            }
+
+            $missing = @($PolicyId | Where-Object { -not $fleetPolicyIds.Contains($_) })
+            if ($missing.Count -gt 0) {
+                throw "Policy IDs $($missing -join ', ') are not on the specified fleets. fleet_ids is not sent, because Fleet would also reset every other policy on those fleets."
+            }
+            $selectedIds = @($PolicyId)
         }
+
+        $body = @{ policy_ids = $selectedIds }
 
         $target = "policies $($PolicyId -join ', ')"
         if ($PSCmdlet.ShouldProcess($target, 'Reset policy automations')) {

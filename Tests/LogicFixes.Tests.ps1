@@ -82,6 +82,32 @@ Describe 'Request and pagination fixes' -Tag 'Unit' {
         }
     }
 
+    It 'keeps requesting full pages when the response has no pagination metadata' {
+        InModuleScope FleetDM-PowerShell {
+            $script:metaFreePages = 0
+            Mock Invoke-RestMethod {
+                $script:metaFreePages++
+                if ($Uri.OriginalString -like '*page=0*') {
+                    return [PSCustomObject]@{
+                        fleets = @(
+                            [PSCustomObject]@{ id = 1; name = 'one' }
+                            [PSCustomObject]@{ id = 2; name = 'two' }
+                        )
+                    }
+                }
+                if ($Uri.OriginalString -like '*page=1*') {
+                    return [PSCustomObject]@{ fleets = @([PSCustomObject]@{ id = 3; name = 'three' }) }
+                }
+                throw "unexpected extra page: $Uri"
+            }
+
+            $result = @(Invoke-FleetDMRequest -Endpoint 'fleets' -QueryParameters @{ per_page = 2 } -FollowPagination)
+            $result.Count | Should -Be 3
+            $result[2].name | Should -Be 'three'
+            $script:metaFreePages | Should -Be 2
+        }
+    }
+
     It 'stops when a page is empty even if has_next_results stays true' {
         InModuleScope FleetDM-PowerShell {
             $script:pages = 0

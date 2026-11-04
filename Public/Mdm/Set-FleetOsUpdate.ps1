@@ -14,7 +14,10 @@ function Set-FleetOsUpdate {
         Minimum macOS version, or "latest".
 
     .PARAMETER MacOsDeadline
-        Deadline date (yyyy-MM-dd) after which macOS updates are forced.
+        Fixed deadline date (yyyy-MM-dd) after which macOS updates are forced. Cannot be combined with MacOsDeadlineDays.
+
+    .PARAMETER MacOsDeadlineDays
+        Number of days before macOS updates are forced. Required when MacOsMinimumVersion is latest. Cannot be combined with MacOsDeadline.
 
     .PARAMETER MacOsUpdateNewHosts
         Update newly enrolled ADE Macs during Setup Assistant.
@@ -56,6 +59,8 @@ function Set-FleetOsUpdate {
 
         [string]$MacOsMinimumVersion,
         [string]$MacOsDeadline,
+        [ValidateRange(0, 365)]
+        [int]$MacOsDeadlineDays,
         [bool]$MacOsUpdateNewHosts,
         [string]$IosMinimumVersion,
         [string]$IosDeadline,
@@ -68,11 +73,40 @@ function Set-FleetOsUpdate {
     )
 
     process {
+        $hasMacDeadline = $PSBoundParameters.ContainsKey('MacOsDeadline')
+        $hasMacDeadlineDays = $PSBoundParameters.ContainsKey('MacOsDeadlineDays')
+        if ($hasMacDeadline -and $hasMacDeadlineDays) {
+            throw "MacOsDeadline and MacOsDeadlineDays cannot be used together."
+        }
+        if ($MacOsMinimumVersion -eq 'latest' -and -not $hasMacDeadlineDays) {
+            throw "MacOsMinimumVersion latest requires -MacOsDeadlineDays. Fleet does not accept a fixed deadline for latest."
+        }
+
+        $current = Invoke-FleetDMRequest -Endpoint "fleets/$FleetId" -Method GET
+        $fleetRecord = $current.team
+        if (-not $fleetRecord) { $fleetRecord = $current.fleet }
+        $currentMdm = $null
+        if ($fleetRecord) {
+            $currentMdm = $fleetRecord.mdm
+        }
+
         $mdm = @{}
-        if ($PSBoundParameters.ContainsKey('MacOsMinimumVersion') -or $PSBoundParameters.ContainsKey('MacOsDeadline') -or $PSBoundParameters.ContainsKey('MacOsUpdateNewHosts')) {
+        if ($PSBoundParameters.ContainsKey('MacOsMinimumVersion') -or $hasMacDeadline -or $hasMacDeadlineDays -or $PSBoundParameters.ContainsKey('MacOsUpdateNewHosts')) {
             $macos = @{}
+            if ($currentMdm -and $currentMdm.macos_updates) {
+                foreach ($prop in $currentMdm.macos_updates.PSObject.Properties) {
+                    $macos[$prop.Name] = $prop.Value
+                }
+            }
             if ($PSBoundParameters.ContainsKey('MacOsMinimumVersion')) { $macos['minimum_version'] = $MacOsMinimumVersion }
-            if ($PSBoundParameters.ContainsKey('MacOsDeadline')) { $macos['deadline'] = $MacOsDeadline }
+            if ($hasMacDeadline) {
+                $macos['deadline'] = $MacOsDeadline
+                $macos.Remove('deadline_days')
+            }
+            if ($hasMacDeadlineDays) {
+                $macos['deadline_days'] = $MacOsDeadlineDays
+                $macos.Remove('deadline')
+            }
             if ($PSBoundParameters.ContainsKey('MacOsUpdateNewHosts')) { $macos['update_new_hosts'] = [bool]$MacOsUpdateNewHosts }
             $mdm['macos_updates'] = $macos
         }

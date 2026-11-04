@@ -110,11 +110,11 @@ function Get-FleetSoftware {
 
         [Parameter(ParameterSetName = 'List')]
         [ValidateRange(0, 10)]
-        [int]$MinCvssScore,
+        [double]$MinCvssScore,
 
         [Parameter(ParameterSetName = 'List')]
         [ValidateRange(0, 10)]
-        [int]$MaxCvssScore,
+        [double]$MaxCvssScore,
 
         [Parameter(ParameterSetName = 'List')]
         [switch]$Exploit,
@@ -174,7 +174,9 @@ function Get-FleetSoftware {
         }
         else {
             # List software with filters
-            $endpoint = "software/versions"
+            # available_for_install and self_service are software title filters.
+            $useTitles = $AvailableForInstall -or $SelfService
+            $endpoint = if ($useTitles) { 'software/titles' } else { 'software/versions' }
             $queryParams = @{
                 per_page = $PerPage
             }
@@ -245,7 +247,10 @@ function Get-FleetSoftware {
             else {
                 $response = Invoke-FleetDMRequest -Endpoint $endpoint -QueryParameters $queryParams
                 # Handle response structure - API returns object with software array
-                if ($response -and $response.PSObject.Properties.Name -contains 'software') {
+                if ($useTitles -and $response -and $null -ne $response.software_titles) {
+                    $result = $response.software_titles
+                }
+                elseif ($response -and $null -ne $response.software) {
                     $result = $response.software
                 }
                 else {

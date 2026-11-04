@@ -83,7 +83,8 @@ function ConvertTo-FleetJsonValue {
 
     if ($Value -is [System.Collections.IEnumerable]) {
         $items = New-Object System.Collections.Generic.List[string]
-        foreach ($item in @($Value)) {
+        # @() on List[object] throws "Argument types do not match" in PowerShell 7.
+        foreach ($item in $Value) {
             $items.Add((ConvertTo-FleetJsonValue -Value $item -Depth ($Depth - 1)))
         }
         return '[' + ($items -join ',') + ']'
@@ -136,7 +137,7 @@ function ConvertTo-FleetQueryString {
 
         if ($rawValue -is [System.Collections.IEnumerable] -and $rawValue -isnot [string]) {
             $encoded = New-Object System.Collections.Generic.List[string]
-            foreach ($item in @($rawValue)) {
+            foreach ($item in $rawValue) {
                 if ($null -eq $item) { continue }
                 $encoded.Add([uri]::EscapeDataString([string]$item))
             }
