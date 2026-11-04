@@ -5,7 +5,7 @@
     Author = 'Jorge Suarez'
     CompanyName = 'Jorgeasaurus'
     Copyright = '(c) 2025 Jorgeasaurus. All rights reserved.'
-    Description = 'PowerShell module for the FleetDM REST API. Free-tier cmdlets cover hosts, reports, policies, and software inventory. Fleet Premium cmdlets cover fleets, software installers, self-service, scripts, MDM, OS updates, policy automations, calendar, and SSO JIT provisioning.'
+    Description = 'PowerShell module for the FleetDM REST API. Free-tier cmdlets cover hosts, reports, policies, software inventory, and company-owned Android wipe. Fleet Premium cmdlets cover fleets, software installers, self-service, scripts, MDM, host wipe for other platforms, OS updates, policy automations, calendar, and SSO JIT provisioning.'
     PowerShellVersion = '5.1'
     CompatiblePSEditions = @('Desktop', 'Core')
 
@@ -38,6 +38,8 @@
         'Remove-FleetSelfServiceCategory',
         'Lock-FleetHost',
         'Unlock-FleetHost',
+        'Invoke-FleetHostWipe',
+        'Get-FleetHostWipeStatus',
         'Get-FleetDiskEncryption',
         'Set-FleetDiskEncryption',
         'Set-FleetOsUpdate',
@@ -66,7 +68,7 @@
             LicenseUri = 'https://github.com/Jorgeasaurus/FleetDM-PowerShell/blob/main/LICENSE'
             ProjectUri = 'https://github.com/Jorgeasaurus/FleetDM-PowerShell'
             IconUri = ''
-            ReleaseNotes = 'Version 2.2.0 - Fixes pagination, query routing, host filters, and Premium license errors. Adds Fleet Premium cmdlets for fleets, software install, self-service, scripts, MDM, OS updates, policy automations, calendar, and SSO JIT provisioning.'
+            ReleaseNotes = 'Version 2.2.0 - Fixes pagination, query routing, host filters, and Premium license errors. Adds Fleet Premium cmdlets for fleets, software install, self-service, scripts, MDM, host wipe, OS updates, policy automations, calendar, and SSO JIT provisioning.'
             Prerelease = ''
             RequireLicenseAcceptance = $false
             ExternalModuleDependencies = @()

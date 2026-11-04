@@ -66,7 +66,8 @@ function ConvertTo-FleetJsonValue {
     )
     foreach ($numericType in $numericTypes) {
         if ($Value -is $numericType) {
-            return ([string]$Value)
+            # [string] follows the current culture, so 1.5 can become "1,5".
+            return [System.Convert]::ToString($Value, [System.Globalization.CultureInfo]::InvariantCulture)
         }
     }
 

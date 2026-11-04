@@ -47,9 +47,11 @@ function Set-FleetCalendarEvent {
         }
 
         if ($PSCmdlet.ShouldProcess("fleet $FleetId", "Set calendar events enabled=$Enable")) {
+            # Fleet-level integrations.google_calendar is one object.
+            # The global app config uses an array of service-account credentials instead.
             $body = @{
                 integrations = @{
-                    google_calendar = @($calendar)
+                    google_calendar = $calendar
                 }
             }
             $response = Invoke-FleetDMRequest -Endpoint "fleets/$FleetId" -Method PATCH -Body $body

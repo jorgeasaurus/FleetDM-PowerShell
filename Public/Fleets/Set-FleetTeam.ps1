@@ -13,7 +13,7 @@ function Set-FleetTeam {
         New fleet name.
 
     .PARAMETER HostId
-        Host IDs that should belong to the fleet.
+        Host IDs to assign to this fleet. Assignment uses POST /api/v1/fleet/hosts/transfer.
 
     .EXAMPLE
         Set-FleetTeam -Id 1 -Name "Engineering"
@@ -40,20 +40,31 @@ function Set-FleetTeam {
     process {
         $body = @{}
         if ($PSBoundParameters.ContainsKey('Name')) { $body['name'] = $Name }
-        if ($PSBoundParameters.ContainsKey('HostId')) { $body['host_ids'] = @($HostId) }
 
-        if ($body.Count -eq 0) {
+        $assignHosts = $PSBoundParameters.ContainsKey('HostId')
+        if ($body.Count -eq 0 -and -not $assignHosts) {
             Write-Warning "No updates specified for fleet ID $Id"
             return
         }
 
         if ($PSCmdlet.ShouldProcess("fleet $Id", 'Update')) {
-            $response = Invoke-FleetDMRequest -Endpoint "fleets/$Id" -Method PATCH -Body $body
-            $fleet = $response.team
-            if (-not $fleet) { $fleet = $response.fleet }
-            if ($fleet -and $fleet.PSObject) {
-                $fleet.PSObject.TypeNames.Insert(0, 'FleetDM.Team')
+            $fleet = $null
+            if ($body.Count -gt 0) {
+                $response = Invoke-FleetDMRequest -Endpoint "fleets/$Id" -Method PATCH -Body $body
+                $fleet = $response.team
+                if (-not $fleet) { $fleet = $response.fleet }
+                if ($fleet -and $fleet.PSObject) {
+                    $fleet.PSObject.TypeNames.Insert(0, 'FleetDM.Team')
+                }
             }
+
+            if ($assignHosts) {
+                $null = Invoke-FleetDMRequest -Endpoint 'hosts/transfer' -Method POST -Body @{
+                    fleet_id = $Id
+                    hosts = @($HostId)
+                }
+            }
+
             return $fleet
         }
     }

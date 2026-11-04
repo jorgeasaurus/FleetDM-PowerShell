@@ -76,8 +76,13 @@ Describe 'Fleet Premium cmdlets' -Tag 'Unit' {
         $created.id | Should -Be 9
         Set-FleetTeam -Id 1 -Name 'Engineering' -Confirm:$false | Out-Null
         Remove-FleetTeam -Id 1 -Confirm:$false | Out-Null
+        Set-FleetTeam -Id 1 -HostId 3, 6 -Confirm:$false | Out-Null
         Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -ParameterFilter {
             $Endpoint -eq 'fleets/1' -and $Method -eq 'DELETE'
+        }
+        Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -ParameterFilter {
+            $Endpoint -eq 'hosts/transfer' -and $Method -eq 'POST' -and
+            $Body.fleet_id -eq 1 -and $Body.hosts -contains 3 -and $Body.hosts -contains 6
         }
     }
 
@@ -139,8 +144,9 @@ Describe 'Fleet Premium cmdlets' -Tag 'Unit' {
     It 'enables calendar events on a fleet' {
         Set-FleetCalendarEvent -FleetId 1 -Enable $true -WebhookUrl 'https://hooks.example/fleet' -Confirm:$false | Out-Null
         Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -ParameterFilter {
-            $Body.integrations.google_calendar[0].enable_calendar_events -eq $true -and
-            $Body.integrations.google_calendar[0].webhook_url -eq 'https://hooks.example/fleet'
+            $Body.integrations.google_calendar.enable_calendar_events -eq $true -and
+            $Body.integrations.google_calendar.webhook_url -eq 'https://hooks.example/fleet' -and
+            $Body.integrations.google_calendar -isnot [System.Collections.IList]
         }
     }
 

@@ -157,6 +157,8 @@ For detailed help and examples, visit the **[Online Documentation](https://jorge
 
 - `Lock-FleetHost` - Lock a host
 - `Unlock-FleetHost` - Unlock a host
+- `Invoke-FleetHostWipe` - Wipe a host. Company-owned Android is Fleet Free; macOS, Windows, iOS, iPadOS, Linux, and personal Android require Premium
+- `Get-FleetHostWipeStatus` - Read `mdm.device_status` and `mdm.pending_action`
 - `Get-FleetDiskEncryption` - Disk encryption summary
 - `Set-FleetDiskEncryption` - Enforce disk encryption
 - `Set-FleetOsUpdate` - Enforce macOS, iOS, iPadOS, or Windows updates
@@ -332,7 +334,7 @@ Invoke-Pester -CodeCoverage @('Public\*.ps1', 'Private\*.ps1')
 
 ## Limitations
 
-- **Premium license**: Fleet, installer, self-service, MDM, calendar, and JIT cmdlets return a license error on Fleet Free (HTTP 402)
+- **Premium license**: Fleet, installer, self-service, MDM, calendar, and JIT cmdlets return a license error on Fleet Free (HTTP 402). Wiping macOS, Windows, iOS, iPadOS, Linux, or personal Android also requires Premium. Company-owned Android wipe is available in Fleet Free
 - **Scripts**: Running a script by ID or contents is available in Fleet Free. Targeting a fleet with `-FleetId` requires Premium
 - **WebSocket connections**: Live campaign rows are not available via REST. Target host IDs to receive results in the session
 - **Direct query results**: Only available when targeting specific host IDs
@@ -428,7 +430,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ### 2.2.0 - Premium cmdlets and API fixes
 
 - Fixed pagination, query-string encoding, single-element JSON arrays, report routes, host filters, and Fleet Premium HTTP 402/403 errors
-- Added Fleet Premium cmdlets for fleets, software installers, self-service, scripts, MDM, OS updates, policy automations, calendar, and SSO JIT provisioning
+- Added Fleet Premium cmdlets for fleets, software installers, self-service, scripts, MDM, host wipe, OS updates, policy automations, calendar, and SSO JIT provisioning
 
 ### 2.1.0 - Jamf GitOps conversion
 
@@ -445,7 +447,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Roadmap
 
-- [x] **Fleet Premium cmdlets**: Fleets, installers, self-service, scripts, MDM, automations, calendar, and JIT provisioning
+- [x] **Fleet Premium cmdlets**: Fleets, installers, self-service, scripts, MDM, host wipe, automations, calendar, and JIT provisioning
 - [x] **Free Tier Focus**: Module optimized for FleetDM Free Tier users
 - [x] **Simplified Authentication**: Removed complex SecretManagement dependencies
 - [x] **High Test Coverage**: Achieved 98%+ test pass rate

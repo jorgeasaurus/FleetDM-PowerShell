@@ -12,6 +12,20 @@ BeforeAll {
 }
 
 Describe 'Request and pagination fixes' -Tag 'Unit' {
+    It 'serializes decimal numbers with a dot under a comma culture' {
+        InModuleScope FleetDM-PowerShell {
+            $previous = [System.Globalization.CultureInfo]::CurrentCulture
+            [System.Globalization.CultureInfo]::CurrentCulture = [System.Globalization.CultureInfo]::GetCultureInfo('de-DE')
+            try {
+                $json = ConvertTo-FleetJson -InputObject @{ rate = [double]1.5 }
+                $json | Should -Be '{"rate":1.5}'
+            }
+            finally {
+                [System.Globalization.CultureInfo]::CurrentCulture = $previous
+            }
+        }
+    }
+
     It 'keeps a one-element array as a JSON array' {
         InModuleScope FleetDM-PowerShell {
             Mock Invoke-RestMethod { return @{ ok = $true } }
