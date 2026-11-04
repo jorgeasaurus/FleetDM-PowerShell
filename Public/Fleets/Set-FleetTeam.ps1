@@ -65,6 +65,15 @@ function Set-FleetTeam {
                 }
             }
 
+            if (-not $fleet) {
+                $response = Invoke-FleetDMRequest -Endpoint "fleets/$Id" -Method GET
+                $fleet = $response.team
+                if (-not $fleet) { $fleet = $response.fleet }
+                if ($fleet -and $fleet.PSObject) {
+                    $fleet.PSObject.TypeNames.Insert(0, 'FleetDM.Team')
+                }
+            }
+
             return $fleet
         }
     }

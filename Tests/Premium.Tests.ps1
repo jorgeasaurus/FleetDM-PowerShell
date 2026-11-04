@@ -77,7 +77,8 @@ Describe 'Fleet Premium cmdlets' -Tag 'Unit' {
         $created.id | Should -Be 9
         Set-FleetTeam -Id 1 -Name 'Engineering' -Confirm:$false | Out-Null
         Remove-FleetTeam -Id 1 -Confirm:$false | Out-Null
-        Set-FleetTeam -Id 1 -HostId 3, 6 -Confirm:$false | Out-Null
+        $assigned = Set-FleetTeam -Id 1 -HostId 3, 6 -Confirm:$false
+        $assigned.name | Should -Be 'Workstations'
         Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -ParameterFilter {
             $Endpoint -eq 'fleets/1' -and $Method -eq 'DELETE'
         }
