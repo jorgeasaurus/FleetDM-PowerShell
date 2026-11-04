@@ -227,6 +227,44 @@ Describe 'Host, removal, and software fixes' -Tag 'Unit' {
         }
     }
 
+    It 'filters software titles by CVE when the name search already uses query' {
+        Mock Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell {
+            return @{
+                software_titles = @(
+                    [PSCustomObject]@{
+                        id = 1
+                        name = 'Chrome'
+                        versions = @(
+                            [PSCustomObject]@{
+                                version = '1.0'
+                                vulnerabilities = @([PSCustomObject]@{ cve = 'CVE-2024-1111' })
+                            }
+                        )
+                    }
+                    [PSCustomObject]@{
+                        id = 2
+                        name = 'Chrome Beta'
+                        versions = @(
+                            [PSCustomObject]@{
+                                version = '2.0'
+                                vulnerabilities = @([PSCustomObject]@{ cve = 'CVE-2024-2222' })
+                            }
+                        )
+                    }
+                )
+            }
+        }
+
+        $result = @(Get-FleetSoftware -AvailableForInstall -Name 'Chrome' -Cve 'CVE-2024-1111' -Page 0)
+        $result.Count | Should -Be 1
+        $result[0].id | Should -Be 1
+        Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -ParameterFilter {
+            $Endpoint -eq 'software/titles' -and
+            $QueryParameters.query -eq 'Chrome' -and
+            -not $QueryParameters.ContainsKey('cve')
+        }
+    }
+
     It 'runs a saved report on the reports endpoint' {
         Mock Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell {
             return @{

@@ -266,7 +266,24 @@ function Get-FleetSoftware {
                 }
             }
             
-            # Apply client-side filtering if needed
+            # Apply client-side filtering if needed.
+            # Title search uses one query string. When -Name already occupies it, -Cve
+            # must still be applied to versions[].vulnerabilities.
+            if ($useTitles -and $Cve -and $result) {
+                $result = @($result | Where-Object {
+                    $matchedCve = $false
+                    foreach ($softwareVersion in @($_.versions)) {
+                        foreach ($vulnerability in @($softwareVersion.vulnerabilities)) {
+                            if ($vulnerability.cve -like "*$Cve*") {
+                                $matchedCve = $true
+                            }
+                        }
+                    }
+                    $matchedCve
+                })
+                Write-Verbose "Filtered to $($result.Count) software titles matching CVE '*$Cve*'"
+            }
+
             if ($Version -and $result) {
                 if ($useTitles) {
                     $result = @($result | Where-Object {
