@@ -113,10 +113,6 @@ function Invoke-FleetDMRequest {
                         break
                     }
 
-                    foreach ($item in $pageItems) {
-                        $allResults.Add($item)
-                    }
-
                     $metadata = $pageData.Metadata
                     $knowsNextPage = $false
                     if ($metadata -is [System.Collections.IDictionary]) {
@@ -125,6 +121,19 @@ function Invoke-FleetDMRequest {
                     elseif ($metadata -and ($metadata.PSObject.Properties.Name -contains 'has_next_results')) {
                         $knowsNextPage = $true
                     }
+
+                    $firstId = $pageItems[0].id
+                    if (-not $knowsNextPage -and $pageSize -gt 0 -and $pageItems.Count -ge $pageSize) {
+                        # A repeated full page is the same cursor. Do not append it.
+                        if ($null -ne $previousFirstId -and $null -ne $firstId -and $firstId -eq $previousFirstId) {
+                            break
+                        }
+                    }
+
+                    foreach ($item in $pageItems) {
+                        $allResults.Add($item)
+                    }
+
                     if ($knowsNextPage) {
                         if (-not $pageData.HasMore) {
                             break
@@ -132,12 +141,8 @@ function Invoke-FleetDMRequest {
                     }
                     else {
                         # List fleets and some other routes omit meta.has_next_results.
-                        # Keep reading while a page is full, and stop if the next page repeats.
+                        # Keep reading while a page is full.
                         if ($pageSize -le 0 -or $pageItems.Count -lt $pageSize) {
-                            break
-                        }
-                        $firstId = $pageItems[0].id
-                        if ($null -ne $previousFirstId -and $null -ne $firstId -and $firstId -eq $previousFirstId) {
                             break
                         }
                         $previousFirstId = $firstId

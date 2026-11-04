@@ -108,6 +108,23 @@ Describe 'Request and pagination fixes' -Tag 'Unit' {
         }
     }
 
+    It 'does not keep a repeated full page' {
+        InModuleScope FleetDM-PowerShell {
+            Mock Invoke-RestMethod {
+                return [PSCustomObject]@{
+                    fleets = @(
+                        [PSCustomObject]@{ id = 1; name = 'one' }
+                        [PSCustomObject]@{ id = 2; name = 'two' }
+                    )
+                }
+            }
+
+            $result = @(Invoke-FleetDMRequest -Endpoint 'fleets' -QueryParameters @{ per_page = 2 } -FollowPagination)
+            $result.Count | Should -Be 2
+            @($result | Where-Object { $_.id -eq 1 }).Count | Should -Be 1
+        }
+    }
+
     It 'stops when a page is empty even if has_next_results stays true' {
         InModuleScope FleetDM-PowerShell {
             $script:pages = 0

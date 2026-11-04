@@ -205,10 +205,18 @@ function Get-FleetSoftware {
             }
             
             if ($Cve) {
-                $queryParams['cve'] = $Cve
-                if (-not $Name) {
-                    # List software versions searches CVE text through query.
-                    $queryParams['query'] = $Cve
+                if ($useTitles) {
+                    # Titles have no cve query parameter. MatchQuery searches the title name and the CVE id.
+                    if (-not $Name) {
+                        $queryParams['query'] = $Cve
+                    }
+                }
+                else {
+                    $queryParams['cve'] = $Cve
+                    if (-not $Name) {
+                        # List software versions searches CVE text through query.
+                        $queryParams['query'] = $Cve
+                    }
                 }
             }
 
@@ -260,7 +268,14 @@ function Get-FleetSoftware {
             
             # Apply client-side filtering if needed
             if ($Version -and $result) {
-                $result = $result | Where-Object { $_.version -like "*$Version*" }
+                if ($useTitles) {
+                    $result = @($result | Where-Object {
+                        @($_.versions) | Where-Object { $_.version -like "*$Version*" }
+                    })
+                }
+                else {
+                    $result = $result | Where-Object { $_.version -like "*$Version*" }
+                }
                 Write-Verbose "Filtered to $($result.Count) software items matching version '*$Version*'"
             }
             
@@ -273,15 +288,28 @@ function Get-FleetSoftware {
                 for ($i = 0; $i -lt $result.Count; $i++) {
                     $result[$i].PSObject.TypeNames.Insert(0, 'FleetDM.Software')
                     
+                    # Title rows keep vulnerabilities on versions[], not on the title.
+                    $vulnerabilities = @()
+                    if ($useTitles) {
+                        foreach ($softwareVersion in @($result[$i].versions)) {
+                            if ($softwareVersion.vulnerabilities) {
+                                $vulnerabilities += @($softwareVersion.vulnerabilities)
+                            }
+                        }
+                    }
+                    elseif ($result[$i].vulnerabilities) {
+                        $vulnerabilities = @($result[$i].vulnerabilities)
+                    }
+
                     # Add calculated properties
-                    if ($result[$i].vulnerabilities) {
-                        $cveCount = @($result[$i].vulnerabilities).Count
+                    if ($vulnerabilities.Count -gt 0) {
+                        $cveCount = $vulnerabilities.Count
                         Add-Member -InputObject $result[$i] -MemberType NoteProperty -Name 'cve_count' -Value $cveCount -Force
                         
                         # Find highest severity - handle cases where severity might be missing
-                        $severities = @($result[$i].vulnerabilities | Where-Object { $_.severity } | ForEach-Object { $_.severity })
+                        $severities = @($vulnerabilities | Where-Object { $_.severity } | ForEach-Object { $_.severity })
                         $highestSeverity = 'none'
-                        if ($severities.Count -eq 0 -and @($result[$i].vulnerabilities).Count -gt 0) {
+                        if ($severities.Count -eq 0 -and $vulnerabilities.Count -gt 0) {
                             # Has vulnerabilities but no severity info
                             $highestSeverity = 'medium'
                         }

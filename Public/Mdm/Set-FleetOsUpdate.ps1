@@ -108,6 +108,27 @@ function Set-FleetOsUpdate {
                 $macos.Remove('deadline')
             }
             if ($PSBoundParameters.ContainsKey('MacOsUpdateNewHosts')) { $macos['update_new_hosts'] = [bool]$MacOsUpdateNewHosts }
+
+            $effectiveMinimum = [string]$macos['minimum_version']
+            $effectiveDeadline = [string]$macos['deadline']
+            $effectiveDeadlineDays = $macos['deadline_days']
+            $hasEffectiveDays = $null -ne $effectiveDeadlineDays -and "$effectiveDeadlineDays" -ne ''
+            if ($effectiveMinimum -eq 'latest') {
+                if ($effectiveDeadline -and -not $hasMacDeadlineDays) {
+                    throw "The fleet minimum macOS version is latest, which requires deadline_days rather than a fixed deadline. Pass -MacOsDeadlineDays."
+                }
+                if (-not $hasEffectiveDays) {
+                    throw "minimum_version latest requires deadline_days. Pass -MacOsDeadlineDays."
+                }
+                $macos.Remove('deadline')
+            }
+            elseif ($hasEffectiveDays -and -not $hasMacDeadlineDays) {
+                throw "deadline_days is only valid when the macOS minimum version is latest. Pass -MacOsMinimumVersion latest, or pass -MacOsDeadline for a pinned version."
+            }
+            elseif ($hasMacDeadline) {
+                $macos.Remove('deadline_days')
+            }
+
             $mdm['macos_updates'] = $macos
         }
         if ($PSBoundParameters.ContainsKey('IosMinimumVersion') -or $PSBoundParameters.ContainsKey('IosDeadline')) {
