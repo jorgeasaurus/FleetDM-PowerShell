@@ -122,11 +122,8 @@ function Set-FleetOsUpdate {
                 }
                 $macos.Remove('deadline')
             }
-            elseif ($hasEffectiveDays -and -not $hasMacDeadlineDays) {
+            elseif ($hasEffectiveDays) {
                 throw "deadline_days is only valid when the macOS minimum version is latest. Pass -MacOsMinimumVersion latest, or pass -MacOsDeadline for a pinned version."
-            }
-            elseif ($hasMacDeadline) {
-                $macos.Remove('deadline_days')
             }
 
             $mdm['macos_updates'] = $macos

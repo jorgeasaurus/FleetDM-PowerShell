@@ -136,6 +136,11 @@ Describe 'Fleet Premium cmdlets' -Tag 'Unit' {
         }
     }
 
+    It 'rejects deadline days on a pinned macOS version' {
+        { Set-FleetOsUpdate -FleetId 1 -MacOsMinimumVersion '15.4.1' -MacOsDeadlineDays 14 -Confirm:$false } |
+            Should -Throw '*deadline_days*'
+    }
+
     It 'patches fleet OS update settings' {
         Set-FleetOsUpdate -FleetId 1 -MacOsMinimumVersion '15.4.1' -MacOsDeadline '2026-07-01' -Confirm:$false | Out-Null
         Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -ParameterFilter {
