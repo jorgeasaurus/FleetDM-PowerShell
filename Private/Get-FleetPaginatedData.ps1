@@ -24,15 +24,25 @@ function Get-FleetPaginatedData {
     # Known collection property names in FleetDM responses
     $collectionProperties = @(
         'hosts',
-        'policies', 
+        'policies',
         'queries',
+        'software_titles',
         'software',
-        'users',
+        'scripts',
+        'fleets',
         'teams',
+        'activities',
+        'self_service_categories',
+        'batch_executions',
+        'operating_systems',
+        'users',
         'labels',
         'targets',
         'results',
-        'vulnerabilities'
+        'vulnerabilities',
+        'certificates',
+        'invites',
+        'carves'
     )
     
     $result = @{
@@ -61,7 +71,7 @@ function Get-FleetPaginatedData {
     if ($Response -is [System.Management.Automation.PSCustomObject]) {
         # Check for collection properties
         foreach ($prop in $collectionProperties) {
-            if ($Response.PSObject.Properties.Name -contains $prop) {
+            if ($Response.PSObject.Properties.Name -contains $prop -and $null -ne $Response.$prop) {
                 $result.Data = $Response.$prop
                 break
             }

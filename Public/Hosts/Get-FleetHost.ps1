@@ -53,7 +53,14 @@ function Get-FleetHost {
         Filter hosts with low disk space (less than specified GB)
     
     .PARAMETER Label
-        Filter by label name or ID
+        Label ID. Hosts are loaded from the label members endpoint. The list-hosts API does not accept a label name.
+
+    .PARAMETER FleetId
+        Fleet Premium. Filters hosts to this fleet. Use 0 for hosts that are not assigned to a fleet.
+
+    .NOTES
+        LowDiskSpace and FleetId require Fleet Premium. A Fleet Free server responds with HTTP 402, which this module reports as a license error.
+        https://fleetdm.com/docs/rest-api/rest-api#list-hosts
     
     .PARAMETER Page
         Page number for pagination (0-based)
@@ -86,9 +93,9 @@ function Get-FleetHost {
         Gets detailed information for host ID 123 including software and policies
     
     .EXAMPLE
-        Get-FleetHost -OSName "macOS" -Status online | Select-Object id, hostname, primary_ip
+        Get-FleetHost -OSName "macOS" -OSVersion "15.2" -Status online | Select-Object id, hostname, primary_ip
         
-        Gets all online macOS hosts and displays their ID, hostname, and IP
+        Gets online macOS 15.2 hosts and displays their ID, hostname, and IP
     
     .LINK
         https://fleetdm.com/docs/using-fleet/rest-api#list-hosts
@@ -100,7 +107,7 @@ function Get-FleetHost {
         [int]$Id,
         
         [Parameter(ParameterSetName = 'List')]
-        [ValidateSet('online', 'offline', 'missing', 'new')]
+        [ValidateSet('online', 'offline', 'missing', 'mia', 'new')]
         [string]$Status,
         
         [Parameter(ParameterSetName = 'List')]
@@ -120,6 +127,7 @@ function Get-FleetHost {
         [string]$OSVersion,
         
         [Parameter(ParameterSetName = 'List')]
+        [Parameter(ParameterSetName = 'ById')]
         [Alias('PopulateSoftware')]
         [switch]$IncludeSoftware,
         
@@ -135,7 +143,7 @@ function Get-FleetHost {
         [switch]$DeviceMapping,
         
         [Parameter(ParameterSetName = 'List')]
-        [string]$MDMId,
+        [int]$MDMId,
         
         [Parameter(ParameterSetName = 'List')]
         [string]$MDMEnrollmentStatus,
@@ -144,10 +152,16 @@ function Get-FleetHost {
         [int]$MunkiIssueId,
         
         [Parameter(ParameterSetName = 'List')]
+        [ValidateRange(1, 100)]
         [int]$LowDiskSpace,
+
+        [Parameter(ParameterSetName = 'List')]
+        [ValidateRange(0, [int]::MaxValue)]
+        [int]$FleetId,
         
         [Parameter(ParameterSetName = 'List')]
-        [string]$Label,
+        [ValidateRange(1, [int]::MaxValue)]
+        [int]$Label,
         
         [Parameter(ParameterSetName = 'List')]
         [int]$Page,
@@ -172,10 +186,23 @@ function Get-FleetHost {
         if ($PSCmdlet.ParameterSetName -eq 'ById') {
             # Get specific host
             $endpoint = "hosts/$Id"
-            
+            $hostQuery = @{}
+
+            # Get host includes software unless exclude_software is set.
+            # -IncludeSoftware:$false opts out. The switch is accepted with -Id
+            # so the documented example binds to the ById parameter set.
+            if ($PSBoundParameters.ContainsKey('IncludeSoftware') -and -not $IncludeSoftware) {
+                $hostQuery['exclude_software'] = 'true'
+            }
+
             Write-Verbose "Retrieving host with ID: $Id"
-            
-            $result = Invoke-FleetDMRequest -Endpoint $endpoint -Method GET
+
+            if ($hostQuery.Count -gt 0) {
+                $result = Invoke-FleetDMRequest -Endpoint $endpoint -Method GET -QueryParameters $hostQuery
+            }
+            else {
+                $result = Invoke-FleetDMRequest -Endpoint $endpoint -Method GET
+            }
             
             # Add custom type for formatting
             if ($result.host) {
@@ -188,6 +215,12 @@ function Get-FleetHost {
             }
         }
         else {
+            $hasOsName = $PSBoundParameters.ContainsKey('OSName')
+            $hasOsVersion = $PSBoundParameters.ContainsKey('OSVersion')
+            if ($hasOsName -xor $hasOsVersion) {
+                throw "OSName and OSVersion must be specified together. Fleet requires both parameters. See https://fleetdm.com/docs/rest-api/rest-api#list-hosts"
+            }
+
             # List hosts with filters
             $queryParams = @{
                 order_key = $OrderKey
@@ -212,9 +245,13 @@ function Get-FleetHost {
                 'MDMEnrollmentStatus' = 'mdm_enrollment_status'
                 'MunkiIssueId' = 'munki_issue_id'
                 'LowDiskSpace' = 'low_disk_space'
-                'Label' = 'label_name'
-                'Id' = $null  # Exclude from query params
-                'PerPage' = $null  # Already handled above
+                'FleetId' = 'fleet_id'
+                'Label' = $null
+                'Id' = $null
+                'PerPage' = $null
+                'OrderKey' = $null
+                'OrderDirection' = $null
+                'After' = $null
             }
             
             $additionalParams = ConvertTo-FleetQueryParameters -BoundParameters $PSBoundParameters -ParameterMapping $paramMapping
@@ -225,8 +262,13 @@ function Get-FleetHost {
             }
             
             # Handle special cases
-            if ($After) {
-                $queryParams['after'] = $After.ToString('yyyy-MM-ddTHH:mm:ssZ')
+            if ($PSBoundParameters.ContainsKey('After')) {
+                $queryParams['after'] = $After.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss'Z'")
+            }
+
+            $endpoint = 'hosts'
+            if ($PSBoundParameters.ContainsKey('Label')) {
+                $endpoint = "labels/$Label/hosts"
             }
             
             Write-Verbose "Retrieving hosts with filters: $($queryParams | ConvertTo-Json -Compress)"
@@ -235,10 +277,10 @@ function Get-FleetHost {
             $followPagination = -not $PSBoundParameters.ContainsKey('Page')
             
             if ($followPagination) {
-                $result = Invoke-FleetDMRequest -Endpoint 'hosts' -QueryParameters $queryParams -FollowPagination
+                $result = Invoke-FleetDMRequest -Endpoint $endpoint -QueryParameters $queryParams -FollowPagination
             }
             else {
-                $response = Invoke-FleetDMRequest -Endpoint 'hosts' -QueryParameters $queryParams
+                $response = Invoke-FleetDMRequest -Endpoint $endpoint -QueryParameters $queryParams
                 $result = $response.hosts
             }
             

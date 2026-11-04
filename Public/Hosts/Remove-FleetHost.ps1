@@ -81,8 +81,13 @@ function Remove-FleetHost {
                     "Host ID: $hostId"
                 }
                 
-                # Confirm action
-                if ($Force -or $PSCmdlet.ShouldProcess($targetDescription, "Remove from FleetDM")) {
+                # -Force skips the confirmation prompt. -WhatIf still wins because
+                # ShouldProcess is always evaluated.
+                if ($Force -and -not $WhatIfPreference) {
+                    $ConfirmPreference = 'None'
+                }
+
+                if ($PSCmdlet.ShouldProcess($targetDescription, "Remove from FleetDM")) {
                     Write-Verbose "Removing host ID: $hostId"
                     
                     # Call the API to remove the host

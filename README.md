@@ -2,7 +2,7 @@
 
 ![FleetDM-PowerShell Logo](fleetPS.png)
 
-A lightweight PowerShell module for interacting with the FleetDM Free Tier REST API.
+A PowerShell module for the FleetDM REST API, including Fleet Free and optional Fleet Premium cmdlets.
 
 [![CI/CD Pipeline](https://github.com/Jorgeasaurus/FleetDM-PowerShell/actions/workflows/ci.yml/badge.svg)](https://github.com/Jorgeasaurus/FleetDM-PowerShell/actions/workflows/ci.yml)
 [![Documentation](https://img.shields.io/badge/docs-online-blue)](https://jorgeasaurus.github.io/FleetDM-PowerShell/)
@@ -14,7 +14,7 @@ A lightweight PowerShell module for interacting with the FleetDM Free Tier REST 
 
 ## Overview
 
-FleetDM-PowerShell provides a native PowerShell interface to FleetDM Free Tier, enabling administrators to manage hosts, queries, policies, and software inventory through familiar PowerShell cmdlets. This module focuses on FleetDM's free functionality without requiring Premium licenses or external dependencies.
+FleetDM-PowerShell provides a native PowerShell interface to Fleet. Free-tier cmdlets manage hosts, reports, policies, and software inventory. Premium cmdlets cover fleets, software installers, self-service categories, scripts, MDM lock and disk encryption, OS update enforcement, policy automations, calendar maintenance windows, and SSO just-in-time provisioning. Premium cmdlets call the same API and surface HTTP 402 from a Fleet Free server as a license error.
 
 ## Download Statistics
 
@@ -24,11 +24,12 @@ FleetDM-PowerShell provides a native PowerShell interface to FleetDM Free Tier, 
 
 ## Features
 
-- **Free Tier Focus**: Designed specifically for FleetDM Free Tier (no Premium license required)
+- **Free Tier**: Hosts, reports, policies, and software inventory without a Premium license
+- **Fleet Premium**: Fleets, software install and uninstall, self-service categories, scripts, host lock and unlock, disk encryption, OS update enforcement, policy automations, calendar events, and SSO JIT provisioning
 - **Host Management**: Query, filter, and manage FleetDM hosts
-- **Query Execution**: Run live queries and saved queries against hosts
-- **Policy Management**: Create, update, and monitor compliance policies
-- **Software Inventory**: Track installed software and vulnerabilities (read-only)
+- **Query Execution**: Run live queries and saved reports against hosts
+- **Policy Management**: Create, update, and monitor compliance policies, including fleet policies
+- **Software Inventory**: Track installed software and vulnerabilities
 - **Cross-Platform**: Works on Windows PowerShell 5.1+ and PowerShell Core 7+
 - **Pipeline Support**: Full support for PowerShell pipeline operations
 - **Simple Authentication**: Support for API tokens and credentials without external dependencies
@@ -38,9 +39,9 @@ FleetDM-PowerShell provides a native PowerShell interface to FleetDM Free Tier, 
 ## Requirements
 
 - PowerShell 5.1 or PowerShell Core 7.0+
-- FleetDM server (4.0+) - Free Tier is sufficient
+- FleetDM server (4.0+). Fleet Premium cmdlets require a Premium license on that server
 - FleetDM API token or credentials
-- No external dependencies or Premium licenses required
+- No external module dependencies
 
 ## Installation
 
@@ -129,7 +130,40 @@ For detailed help and examples, visit the **[Online Documentation](https://jorge
 
 ### Software Management
 
-- `Get-FleetSoftware` - Retrieve software inventory (read-only)
+- `Get-FleetSoftware` - Retrieve software inventory
+- `Install-FleetSoftware` - Install a software title on a host (Premium)
+- `Uninstall-FleetSoftware` - Uninstall a software title from a host (Premium)
+- `Get-FleetSoftwareInstall` - Read a package install result (Premium)
+- `Remove-FleetSoftwarePackage` - Remove an installer from a fleet (Premium)
+- `Get-FleetSelfServiceCategory` - List self-service categories (Premium)
+- `New-FleetSelfServiceCategory` - Create a self-service category (Premium)
+- `Set-FleetSelfServiceCategory` - Rename a self-service category (Premium)
+- `Remove-FleetSelfServiceCategory` - Delete a self-service category (Premium)
+
+### Fleets (Premium)
+
+- `Get-FleetTeam` - List or get fleets (the REST resource is `/fleets`)
+- `New-FleetTeam` - Create a fleet
+- `Set-FleetTeam` - Rename a fleet or assign hosts
+- `Remove-FleetTeam` - Delete a fleet
+
+### Scripts
+
+- `Get-FleetScript` - List or get saved scripts. `-FleetId` requires Premium
+- `Invoke-FleetScript` - Run a script. `-FleetId` / `-ScriptName` requires Premium
+- `Remove-FleetScript` - Delete a saved script
+
+### MDM and automations (Premium)
+
+- `Lock-FleetHost` - Lock a host
+- `Unlock-FleetHost` - Unlock a host
+- `Get-FleetDiskEncryption` - Disk encryption summary
+- `Set-FleetDiskEncryption` - Enforce disk encryption
+- `Set-FleetOsUpdate` - Enforce macOS, iOS, iPadOS, or Windows updates
+- `Set-FleetCalendarEvent` - Enable calendar maintenance windows for a fleet
+- `Get-FleetPolicyAutomation` - List policy automation activity
+- `Reset-FleetPolicyAutomation` - Reset failing-policy automation state. `-FleetId` requires Premium
+- `Set-FleetJitProvisioning` - Enable SSO just-in-time user provisioning
 
 ### Advanced
 
@@ -298,9 +332,9 @@ Invoke-Pester -CodeCoverage @('Public\*.ps1', 'Private\*.ps1')
 
 ## Limitations
 
-- **Free Tier Only**: This module is designed for FleetDM Free Tier and does not support Premium features
-- **No Software Installation**: Software installation requires FleetDM Premium license
-- **WebSocket connections**: Live query results are not available via REST API (FleetDM limitation)
+- **Premium license**: Fleet, installer, self-service, MDM, calendar, and JIT cmdlets return a license error on Fleet Free (HTTP 402)
+- **Scripts**: Running a script by ID or contents is available in Fleet Free. Targeting a fleet with `-FleetId` requires Premium
+- **WebSocket connections**: Live campaign rows are not available via REST. Target host IDs to receive results in the session
 - **Direct query results**: Only available when targeting specific host IDs
   - Queries using `-Label` or `-All` return campaign info only
 - **Query result retrieval**: Has a timeout limit (default 25 seconds)
@@ -391,6 +425,15 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Version History
 
+### 2.2.0 - Premium cmdlets and API fixes
+
+- Fixed pagination, query-string encoding, single-element JSON arrays, report routes, host filters, and Fleet Premium HTTP 402/403 errors
+- Added Fleet Premium cmdlets for fleets, software installers, self-service, scripts, MDM, OS updates, policy automations, calendar, and SSO JIT provisioning
+
+### 2.1.0 - Jamf GitOps conversion
+
+- Added `ConvertFrom-JamfXmlToFleetYaml`
+
 ### 1.0.0 - Initial Release
 
 - Core host, query, policy, and software management
@@ -402,6 +445,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Roadmap
 
+- [x] **Fleet Premium cmdlets**: Fleets, installers, self-service, scripts, MDM, automations, calendar, and JIT provisioning
 - [x] **Free Tier Focus**: Module optimized for FleetDM Free Tier users
 - [x] **Simplified Authentication**: Removed complex SecretManagement dependencies
 - [x] **High Test Coverage**: Achieved 98%+ test pass rate

@@ -17,6 +17,13 @@ function Get-FleetPolicy {
     
     .PARAMETER PerPage
         Number of results per page (default: 100)
+
+    .PARAMETER FleetId
+        Fleet Premium. Reads policies that belong to this fleet instead of global policies. Use 0 for hosts that are not assigned to a fleet.
+
+    .NOTES
+        FleetId requires Fleet Premium.
+        https://fleetdm.com/docs/rest-api/rest-api#list-fleet-level-policies
     
     .EXAMPLE
         Get-FleetPolicy
@@ -51,7 +58,12 @@ function Get-FleetPolicy {
         
         [Parameter(ParameterSetName = 'List')]
         [ValidateRange(1, 1000)]
-        [int]$PerPage = 100
+        [int]$PerPage = 100,
+
+        [Parameter(ParameterSetName = 'List')]
+        [Parameter(ParameterSetName = 'ById')]
+        [ValidateRange(0, [int]::MaxValue)]
+        [int]$FleetId
     )
     
     process {
@@ -60,7 +72,7 @@ function Get-FleetPolicy {
             Write-Verbose "Retrieving policy ID: $Id"
             
             try {
-                $endpoint = "global/policies/$Id"
+                $endpoint = if ($PSBoundParameters.ContainsKey('FleetId')) { "fleets/$FleetId/policies/$Id" } else { "global/policies/$Id" }
                 $response = Invoke-FleetDMRequest -Endpoint $endpoint -Method GET
                 
                 if ($response.policy) {
@@ -92,8 +104,8 @@ function Get-FleetPolicy {
                 $queryParams['page'] = $Page
             }
             
-            $endpoint = "global/policies"
-            Write-Verbose "Retrieving global policies"
+            $endpoint = if ($PSBoundParameters.ContainsKey('FleetId')) { "fleets/$FleetId/policies" } else { "global/policies" }
+            Write-Verbose "Retrieving policies from $endpoint"
             
             Write-Verbose "Query parameters: $($queryParams | ConvertTo-Json -Compress)"
             
@@ -114,8 +126,10 @@ function Get-FleetPolicy {
                 Write-Verbose "Filtered to $($result.Count) policies matching name '*$Name*'"
             }
             
-            # Add custom type for formatting
+            # Add custom type for formatting. A one-element JSON array is a scalar
+            # on Windows PowerShell 5.1, and scalar .Count does not enter the loop.
             if ($result) {
+                $result = @($result)
                 for ($i = 0; $i -lt $result.Count; $i++) {
                     $result[$i].PSObject.TypeNames.Insert(0, 'FleetDM.Policy')
                     

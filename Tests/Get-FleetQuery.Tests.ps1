@@ -58,8 +58,8 @@ BeforeAll {
     Mock Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell {
         param($Endpoint, $Method, $QueryParameters)
         
-        if ($Endpoint -match "queries/(\d+)") {
-            $queryId = [int]$matches[1]
+        if ($Endpoint -match "^(queries|reports)/(\d+)$") {
+            $queryId = [int]$matches[2]
             $query = $script:MockQueries | Where-Object { $_.id -eq $queryId }
             if ($query) {
                 # Return the query wrapped in a query property as the API does
@@ -71,7 +71,7 @@ BeforeAll {
                 throw "Query not found"
             }
         }
-        elseif ($Endpoint -eq "queries") {
+        elseif ($Endpoint -eq "queries" -or $Endpoint -eq "reports") {
             $filteredQueries = $script:MockQueries
             
             # Apply filters based on query parameters

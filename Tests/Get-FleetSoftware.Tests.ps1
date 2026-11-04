@@ -21,7 +21,7 @@ BeforeAll {
         param($Endpoint, $Method, $QueryParameters)
         
         # Mock software retrieval responses
-        if ($Endpoint -eq "software") {
+        if ($Endpoint -eq "software" -or $Endpoint -eq "software/versions") {
             return @{
                 software = @(
                     @{
@@ -44,7 +44,7 @@ BeforeAll {
                 count = 2
             }
         }
-        elseif ($Endpoint -match "^software/(\d+)$") {
+        elseif ($Endpoint -match "^software/(?:versions/)?(\d+)$") {
             $softwareId = [int]$matches[1]
             if ($softwareId -eq 999999) {
                 throw "Software not found"

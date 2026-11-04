@@ -57,17 +57,12 @@ function Invoke-FleetDMRequest {
         Write-Verbose "Using headers: $($script:FleetDMConnection.Headers | ConvertTo-Json -Compress)"
         # Add query parameters if provided
         if ($QueryParameters -and $QueryParameters.Count -gt 0) {
-            $queryString = @()
-            
-            foreach ($param in $QueryParameters.GetEnumerator()) {
-                $encodedKey = [System.Web.HttpUtility]::UrlEncode($param.Key)
-                $encodedValue = [System.Web.HttpUtility]::UrlEncode($param.Value.ToString())
-                $queryString += "$encodedKey=$encodedValue"
+            $queryString = ConvertTo-FleetQueryString -QueryParameters $QueryParameters
+            if ($queryString) {
+                $separator = if ($uri.Contains('?')) { '&' } else { '?' }
+                $uri = "$uri$separator$queryString"
             }
-            
-            $separator = if ($uri.Contains('?')) { '&' } else { '?' }
-            $uri = "$uri$separator$($queryString -join '&')"
-            
+
             Write-Verbose "Full URI with parameters: $uri"
         }
         Write-Verbose "HTTP Method: $Method"
@@ -83,7 +78,7 @@ function Invoke-FleetDMRequest {
         Write-Verbose "Request parameters: $($requestParams | ConvertTo-Json -Compress)"
         # Add body if provided
         if ($Body -and $Body.Count -gt 0) {
-            $jsonBody = $Body | ConvertTo-Json -Depth 10 -Compress
+            $jsonBody = ConvertTo-FleetJson -InputObject $Body -Depth 10
             $requestParams['Body'] = $jsonBody
             Write-Verbose "Request body: $jsonBody"
         }
@@ -91,39 +86,46 @@ function Invoke-FleetDMRequest {
         try {
             if ($FollowPagination -and $Method -eq 'GET') {
                 Write-Verbose "Pagination enabled. Fetching all results."
-                # Handle pagination
-                $allResults = @()
+                $allResults = New-Object System.Collections.Generic.List[object]
                 $page = 0
-                $hasMore = $true
-                
-                while ($hasMore) {
-                    # Add page parameter
-                    $currentUri = if ($uri -match '\?') { "$uri&page=$page" } else { "$uri?page=$page" }
-                    $requestParams['Uri'] = $currentUri
-                    
+                $maxPages = 1000
+                $baseUri = Get-FleetUriWithoutPage -Uri $uri
+
+                while ($page -lt $maxPages) {
+                    $separator = if ($baseUri.Contains('?')) { '&' } else { '?' }
+                    $requestParams['Uri'] = "$baseUri${separator}page=$page"
+
                     Write-Verbose "Fetching page $page"
-                    
+
                     $response = Invoke-RestMethod @requestParams
-                    
-                    # Extract data and check for more pages using helper
                     $pageData = Get-FleetPaginatedData -Response $response -ReturnMetadata
-                    
-                    if ($pageData.Data) {
-                        $allResults += $pageData.Data
+                    $pageItems = @($pageData.Data | Where-Object { $null -ne $_ })
+
+                    # An empty page means the cursor is exhausted. Continuing
+                    # when has_next_results stays true would loop forever.
+                    if ($pageItems.Count -eq 0) {
+                        break
                     }
-                    
-                    # Check if there are more pages
-                    if ($pageData.HasMore) {
-                        $page++
+
+                    foreach ($item in $pageItems) {
+                        $allResults.Add($item)
                     }
-                    else {
-                        $hasMore = $false
+
+                    if (-not $pageData.HasMore) {
+                        break
                     }
+
+                    $page++
                 }
-                
+
+                if ($page -ge $maxPages) {
+                    Write-Warning "Stopped pagination after $maxPages pages."
+                }
+
                 Write-Verbose "Retrieved $($allResults.Count) total items across $($page + 1) pages"
-                
-                return $allResults
+
+                # List[object] cannot be unwrapped with @() on PowerShell 7.
+                return @($allResults.ToArray())
             }
             else {
                 Write-Verbose "No pagination requested. Sending single request."
@@ -137,12 +139,12 @@ function Invoke-FleetDMRequest {
         }
         catch {
             # Handle errors
-            Handle-FleetDMError -ErrorRecord $_
+            Resolve-FleetDMApiError -ErrorRecord $_
         }
     }
 }
 
-function Handle-FleetDMError {
+function Resolve-FleetDMApiError {
     <#
     .SYNOPSIS
         Internal function to handle FleetDM API errors
@@ -161,43 +163,50 @@ function Handle-FleetDMError {
     
     $exception = $ErrorRecord.Exception
     $response = $exception.Response
-    
+
     if ($response) {
         $statusCode = [int]$response.StatusCode
         $statusDescription = $response.StatusDescription
-        
+
         # Try to parse the error response body
         $errorMessage = $statusDescription
         $errorDetails = $null
-        
-        try {
-            $stream = $response.GetResponseStream()
-            $reader = New-Object System.IO.StreamReader($stream)
-            $reader.BaseStream.Position = 0
-            $responseBody = $reader.ReadToEnd()
-            $reader.Close()
-            
-            if ($responseBody) {
+        $responseBody = Get-FleetHttpErrorBody -ErrorRecord $ErrorRecord
+
+        if ($responseBody) {
+            try {
                 $errorContent = $responseBody | ConvertFrom-Json
-                
+
                 if ($errorContent.message) {
                     $errorMessage = $errorContent.message
                 }
-                
+
                 if ($errorContent.errors) {
                     $errorDetails = $errorContent.errors
                 }
-                
+
                 if ($errorContent.uuid) {
                     Write-Verbose "Error UUID: $($errorContent.uuid)"
                 }
             }
-        }
-        catch {
-            Write-Verbose "Could not parse error response body"
+            catch {
+                Write-Verbose "Could not parse error response body"
+                if (-not $errorMessage) {
+                    $errorMessage = $responseBody
+                }
+            }
         }
         
         # Create error message based on status code
+        $premiumText = "$errorMessage $($errorDetails | Out-String)"
+        $isPremiumStatus = $statusCode -eq 402 -or (
+            $statusCode -eq 403 -and $premiumText -match 'premium|license'
+        )
+        if ($isPremiumStatus) {
+            $detail = if ($errorMessage) { $errorMessage } else { 'Requires Fleet Premium license' }
+            throw "This feature requires Fleet Premium. $detail"
+        }
+
         switch ($statusCode) {
             400 {
                 # Check for specific error reasons in the details
@@ -268,4 +277,90 @@ function Handle-FleetDMError {
         # Non-HTTP error (network, timeout, etc.)
         throw "Failed to communicate with FleetDM: $($exception.Message)"
     }
+}
+
+function Get-FleetHttpErrorBody {
+    <#
+    .SYNOPSIS
+        Reads the response body from a failed Fleet HTTP call.
+
+    .DESCRIPTION
+        PowerShell 7 exposes the body on ErrorRecord.ErrorDetails and the
+        response as HttpResponseMessage. Windows PowerShell 5.1 exposes an
+        HttpWebResponse stream. Both shapes are read here.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [System.Management.Automation.ErrorRecord]$ErrorRecord
+    )
+
+    if ($ErrorRecord.ErrorDetails -and $ErrorRecord.ErrorDetails.Message) {
+        return [string]$ErrorRecord.ErrorDetails.Message
+    }
+
+    $response = $ErrorRecord.Exception.Response
+    if (-not $response) {
+        return $null
+    }
+
+    if ($response.PSObject.Methods.Name -contains 'GetResponseStream') {
+        try {
+            $stream = $response.GetResponseStream()
+            if ($stream -and $stream.CanSeek) {
+                $stream.Position = 0
+            }
+            $reader = New-Object System.IO.StreamReader($stream)
+            $body = $reader.ReadToEnd()
+            $reader.Dispose()
+            return $body
+        }
+        catch {
+            Write-Verbose "Could not read HTTP response stream: $_"
+        }
+    }
+
+    if ($response.Content -and $response.Content.PSObject.Methods.Name -contains 'ReadAsStringAsync') {
+        try {
+            return $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+        }
+        catch {
+            Write-Verbose "Could not read HTTP response content: $_"
+        }
+    }
+
+    return $null
+}
+
+function Get-FleetUriWithoutPage {
+    <#
+    .SYNOPSIS
+        Returns a URI with any existing page query parameter removed.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Uri
+    )
+
+    $question = $Uri.IndexOf('?')
+    if ($question -lt 0) {
+        return $Uri
+    }
+
+    $path = $Uri.Substring(0, $question)
+    $query = $Uri.Substring($question + 1)
+    $kept = New-Object System.Collections.Generic.List[string]
+    foreach ($part in ($query -split '&')) {
+        if ([string]::IsNullOrEmpty($part)) { continue }
+        $name = ($part -split '=', 2)[0]
+        if ($name -eq 'page') { continue }
+        $kept.Add($part)
+    }
+
+    if ($kept.Count -eq 0) {
+        return $path
+    }
+
+    return ($path + '?' + ($kept -join '&'))
 }

@@ -62,7 +62,7 @@ function Get-FleetQuery {
     process {
         if ($PSCmdlet.ParameterSetName -eq 'ById') {
             # Get specific query
-            $endpoint = "queries/$Id"
+            $endpoint = "reports/$Id"
             
             Write-Verbose "Retrieving query with ID: $Id"
             
@@ -95,10 +95,10 @@ function Get-FleetQuery {
             $followPagination = -not $PSBoundParameters.ContainsKey('Page')
             
             if ($followPagination) {
-                $result = Invoke-FleetDMRequest -Endpoint 'queries' -QueryParameters $queryParams -FollowPagination
+                $result = Invoke-FleetDMRequest -Endpoint 'reports' -QueryParameters $queryParams -FollowPagination
             }
             else {
-                $response = Invoke-FleetDMRequest -Endpoint 'queries' -QueryParameters $queryParams
+                $response = Invoke-FleetDMRequest -Endpoint 'reports' -QueryParameters $queryParams
                 $result = $response.queries
             }
             
