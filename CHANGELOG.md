@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2.1
+
+### Fixed
+
+- `Get-FleetTeam` returns fleets when Fleet sends the same list under both `teams` and `fleets`. An empty or null legacy key no longer hides the records, and the two keys are not concatenated.
+
 ## 2.2.0
 
 ### Fixed

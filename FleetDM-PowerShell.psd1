@@ -1,6 +1,6 @@
 @{
     RootModule = 'FleetDM-PowerShell.psm1'
-    ModuleVersion = '2.2.0'
+    ModuleVersion = '2.2.1'
     GUID = 'a7c4b8f3-2d1e-4f5a-9c8b-1e3d5a7f9b2c'
     Author = 'Jorge Suarez'
     CompanyName = 'Jorgeasaurus'
@@ -68,7 +68,7 @@
             LicenseUri = 'https://github.com/Jorgeasaurus/FleetDM-PowerShell/blob/main/LICENSE'
             ProjectUri = 'https://github.com/Jorgeasaurus/FleetDM-PowerShell'
             IconUri = ''
-            ReleaseNotes = 'Version 2.2.0 - Fixes pagination, query routing, host filters, and Premium license errors. Adds Fleet Premium cmdlets for fleets, software install, self-service, scripts, MDM, host wipe, OS updates, policy automations, calendar, and SSO JIT provisioning. Adds email login and New-FleetUser. Verbose logs redact passwords and bearer tokens.'
+            ReleaseNotes = 'Version 2.2.1 - Get-FleetTeam returns the fleet list when Fleet sends it under both teams and fleets. An empty or null legacy key no longer hides the records, and the two keys are not concatenated. Fixes #5.'
             Prerelease = ''
             RequireLicenseAcceptance = $false
             ExternalModuleDependencies = @()
