@@ -99,8 +99,11 @@ function Get-FleetPaginatedData {
                 $collectionName = $unwrappedName
             }
         }
-        # Both keys populated: keep the current name, fleets, including when teams was listed first.
-        if ($collectionName -eq 'teams') {
+        # Both keys populated: keep fleets, including when teams was listed first.
+        # A one-element JSON array is one PSCustomObject, so that candidate's name
+        # lives on the unwrapped object and collectionName is still null.
+        $selectedName = if ($collectionName) { $collectionName } else { $unwrappedName }
+        if ($selectedName -eq 'teams') {
             $fleetProperty = Get-FleetEnvelopeProperty -Response $Response -Name 'fleets'
             if ($fleetProperty -and (Test-FleetCollectionPopulated -Value $fleetProperty.Value)) {
                 $collection = $fleetProperty.Value

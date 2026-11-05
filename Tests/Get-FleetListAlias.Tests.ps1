@@ -101,6 +101,26 @@ Describe 'Fleet list responses that include teams and fleets' -Tag 'Unit' {
         }
     }
 
+    It 'prefers fleets when both keys are one unwrapped record and teams is listed first' {
+        # Windows PowerShell 5.1 ConvertFrom-Json turns a one-element JSON array into one object.
+        InModuleScope FleetDM-PowerShell {
+            $response = [PSCustomObject]@{
+                teams = [PSCustomObject]@{ id = 2; name = 'from-teams' }
+                fleets = [PSCustomObject]@{ id = 1; name = 'from-fleets' }
+            }
+
+            $paginated = @(Get-FleetPaginatedData -Response $response)
+            $paginated.Count | Should -Be 1
+            $paginated[0].name | Should -Be 'from-fleets'
+            $paginated[0].id | Should -Be 1
+
+            $listed = @(Get-FleetListResult -Response $response -Name 'fleets' -TypeName 'FleetDM.Team')
+            $listed.Count | Should -Be 1
+            $listed[0].name | Should -Be 'from-fleets'
+            $listed[0].id | Should -Be $paginated[0].id
+        }
+    }
+
     It 'still reads a response that has only fleets' {
         InModuleScope FleetDM-PowerShell -Parameters @{ SixFleets = $script:SixFleets } {
             $response = [PSCustomObject]@{ fleets = $SixFleets }
