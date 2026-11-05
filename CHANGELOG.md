@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- Verbose request and connection logs redact `password`, token fields, and `Authorization` bearer values at any nesting depth. `New-FleetUser` still sends the password to Fleet. `-Verbose`, transcripts, and CI logs do not receive it.
+- Verbose request and connection logs redact `password`, token fields, and `Authorization` bearer values at any nesting depth, including array and object values and secret query parameters. `New-FleetUser` still sends the password to Fleet. `-Verbose`, transcripts, and CI logs do not receive it. The HTTP URI is unchanged.
 - Software title searches that set both `-Name` and `-Cve` still filter `versions[].vulnerabilities`. Those values are CVE id strings. The title `query` parameter stays the name.
 - The build pins psake 4.9.1 and BuildHelpers 2.0.16. psake 5, published after the last green `main` run, defines a parameterless `Set-BuildEnvironment` that rejected `-Force` inside the build tasks.
 - Query strings are encoded without `System.Web`, null parameters are omitted, and collections are not serialized as `System.Object[]`.

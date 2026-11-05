@@ -587,10 +587,9 @@ Describe "Invoke-FleetDMRequest" -Tags @('Unit', 'Core') {
 
         It "Should redact stringified secrets and Windows PowerShell 5.1 Key/Value JSON" {
             InModuleScope FleetDM-PowerShell {
-                $literal = 'prefix @{password=REDACT-TEST-PASSWORD; token=gg_test_not_a_real_secret; authorization=Bearer gg_test_not_a_real_bearer} suffix'
+                $literal = 'prefix @{password=REDACT-TEST-PASSWORD; token=gg_test_not_a_real_secret; authorization=Bearer gg_test_not_a_real_bearer}'
                 $redactedLiteral = Get-FleetRedactedLogText -Text $literal
                 $redactedLiteral | Should -Match 'prefix'
-                $redactedLiteral | Should -Match 'suffix'
                 $redactedLiteral | Should -Not -Match 'REDACT-TEST-PASSWORD'
                 $redactedLiteral | Should -Not -Match 'gg_test_not_a_real_secret'
                 $redactedLiteral | Should -Not -Match 'gg_test_not_a_real_bearer'
@@ -602,6 +601,99 @@ Describe "Invoke-FleetDMRequest" -Tags @('Unit', 'Core') {
                 $redactedEntries | Should -Not -Match 'REDACT-TEST-PASSWORD'
                 $redactedEntries | Should -Not -Match 'gg_test_not_a_real_secret'
                 $redactedEntries | Should -Not -Match 'gg_test_not_a_real_bearer'
+            }
+        }
+
+        It "Should redact array and object values of secret keys" {
+            InModuleScope FleetDM-PowerShell {
+                Mock Invoke-RestMethod {
+                    return [PSCustomObject]@{ user = @{ id = 1 } }
+                }
+
+                $json = '{"name":"keep-visible","token":["gg_test_not_a_real_first","gg_test_not_a_real_second"],"secret":{"nested":"gg_test_not_a_real_object"}}'
+                $redactedJson = Get-FleetRedactedLogText -Text $json
+                $redactedJson | Should -Match 'keep-visible'
+                $redactedJson | Should -Not -Match 'gg_test_not_a_real_first'
+                $redactedJson | Should -Not -Match 'gg_test_not_a_real_second'
+                $redactedJson | Should -Not -Match 'gg_test_not_a_real_object'
+
+                $entryJson = '{"Key":"token","Value":["gg_test_not_a_real_first","gg_test_not_a_real_second"]}'
+                $redactedEntry = Get-FleetRedactedLogText -Text $entryJson
+                $redactedEntry | Should -Not -Match 'gg_test_not_a_real_first'
+                $redactedEntry | Should -Not -Match 'gg_test_not_a_real_second'
+
+                $records = @(
+                    Invoke-FleetDMRequest -Endpoint 'users/admin' -Method POST -Body @{
+                        name   = 'keep-visible'
+                        token  = @('gg_test_not_a_real_first', 'gg_test_not_a_real_second')
+                        secret = @{ nested = 'gg_test_not_a_real_object' }
+                    } -Verbose 4>&1
+                )
+
+                $log = @(
+                    $records |
+                        Where-Object { $_ -is [System.Management.Automation.VerboseRecord] } |
+                        ForEach-Object { $_.Message }
+                ) -join "`n"
+
+                $log | Should -Match 'keep-visible'
+                $log | Should -Match '\[REDACTED\]'
+                $log | Should -Not -Match 'gg_test_not_a_real_first'
+                $log | Should -Not -Match 'gg_test_not_a_real_second'
+                $log | Should -Not -Match 'gg_test_not_a_real_object'
+
+                Should -Invoke Invoke-RestMethod -Times 1 -ParameterFilter {
+                    $Body -match 'gg_test_not_a_real_first' -and
+                    $Body -match 'gg_test_not_a_real_second' -and
+                    $Body -match 'gg_test_not_a_real_object' -and
+                    $Body -notmatch '\[REDACTED\]'
+                }
+            }
+        }
+
+        It "Should suppress PowerShell literal secret values that contain delimiters" {
+            InModuleScope FleetDM-PowerShell {
+                $semicolon = Get-FleetRedactedLogText -Text '@{password=REDACT-TEST-PREFIX;REDACT-TEST-TAIL}'
+                $semicolon | Should -Not -Match 'REDACT-TEST-PREFIX'
+                $semicolon | Should -Not -Match 'REDACT-TEST-TAIL'
+
+                $brace = Get-FleetRedactedLogText -Text '@{password=REDACT-TEST-PREFIX}REDACT-TEST-BRACE}'
+                $brace | Should -Not -Match 'REDACT-TEST-PREFIX'
+                $brace | Should -Not -Match 'REDACT-TEST-BRACE'
+
+                $newline = Get-FleetRedactedLogText -Text "@{password=REDACT-TEST-PREFIX}`nREDACT-TEST-LINE"
+                $newline | Should -Not -Match 'REDACT-TEST-PREFIX'
+                $newline | Should -Not -Match 'REDACT-TEST-LINE'
+            }
+        }
+
+        It "Should redact secret query parameters in verbose URIs only" {
+            InModuleScope FleetDM-PowerShell {
+                Mock Invoke-RestMethod {
+                    return [PSCustomObject]@{ hosts = @() }
+                }
+
+                $records = @(
+                    Invoke-FleetDMRequest -Endpoint 'hosts' -QueryParameters @{
+                        status = 'online'
+                        token  = 'gg_test_not_a_real_query'
+                    } -Verbose 4>&1
+                )
+
+                $log = @(
+                    $records |
+                        Where-Object { $_ -is [System.Management.Automation.VerboseRecord] } |
+                        ForEach-Object { $_.Message }
+                ) -join "`n"
+
+                $log | Should -Match 'status=online'
+                $log | Should -Match 'token=\[REDACTED\]'
+                $log | Should -Not -Match 'gg_test_not_a_real_query'
+
+                Should -Invoke Invoke-RestMethod -Times 1 -ParameterFilter {
+                    "$Uri" -match 'token=gg_test_not_a_real_query' -and
+                    "$Uri" -match 'status=online'
+                }
             }
         }
     }

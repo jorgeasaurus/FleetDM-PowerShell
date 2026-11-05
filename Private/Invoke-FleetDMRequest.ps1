@@ -1,3 +1,80 @@
+function Test-FleetSecretLogName {
+    <#
+    .SYNOPSIS
+        Tests whether a log field name carries a credential.
+    #>
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [string]$Name
+    )
+
+    if ([string]::IsNullOrEmpty($Name)) {
+        return $false
+    }
+
+    return [bool]($Name -match '^(?i)(?:current_password|new_password|api_token|authorization|password|token|secret)$')
+}
+
+function Get-FleetRedactedUriText {
+    <#
+    .SYNOPSIS
+        Masks secret query values in text used only for logging.
+    #>
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [string]$Text
+    )
+
+    if ([string]::IsNullOrEmpty($Text)) {
+        return $Text
+    }
+
+    return [regex]::Replace(
+        $Text,
+        '(?i)([?&](?:current_password|new_password|api_token|authorization|password|token|secret)=)[^&\s#"]*',
+        '${1}[REDACTED]'
+    )
+}
+
+function Format-FleetUnsafeSecretLiteral {
+    <#
+    .SYNOPSIS
+        Drops the remainder of a log string at an unparsable secret assignment.
+
+    .DESCRIPTION
+        PowerShell display text such as @{password=prefix;sensitive-tail} does not
+        mark where a value ends. Semicolons, braces, and newlines can belong to
+        the secret, so the rest of that literal is suppressed.
+    #>
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [string]$Text
+    )
+
+    if ([string]::IsNullOrEmpty($Text)) {
+        return $Text
+    }
+
+    # Query strings are masked separately. A preceding ? or & is not a PowerShell literal.
+    $match = [regex]::Match(
+        $Text,
+        '(?i)(?<![?&])(?:current_password|new_password|api_token|authorization|password|token|secret)\s*='
+    )
+    if (-not $match.Success) {
+        return $Text
+    }
+
+    $start = $Text.LastIndexOf('@{', $match.Index)
+    if ($start -lt 0) {
+        $start = $match.Index
+    }
+
+    return $Text.Substring(0, $start) + '[REDACTED]'
+}
+
 function ConvertTo-FleetLogJson {
     <#
     .SYNOPSIS
@@ -43,7 +120,13 @@ function ConvertTo-FleetLogJson {
 
     if ($InputObject -is [System.Collections.IDictionary]) {
         $pairs = foreach ($key in @($InputObject.Keys)) {
-            '{0}:{1}' -f (ConvertTo-Json -InputObject $key -Compress), (ConvertTo-FleetLogJson -InputObject $InputObject[$key] -Seen $Seen)
+            $keyJson = ConvertTo-Json -InputObject $key -Compress
+            if (Test-FleetSecretLogName -Name ([string]$key)) {
+                '{0}:"[REDACTED]"' -f $keyJson
+            }
+            else {
+                '{0}:{1}' -f $keyJson, (ConvertTo-FleetLogJson -InputObject $InputObject[$key] -Seen $Seen)
+            }
         }
         return '{' + ($pairs -join ',') + '}'
     }
@@ -57,8 +140,32 @@ function ConvertTo-FleetLogJson {
 
     $noteProperties = @($InputObject.PSObject.Properties | Where-Object { $_.MemberType -eq 'NoteProperty' })
     if ($noteProperties.Count -gt 0) {
+        $keyProperty = $null
+        $valueProperty = $null
+        foreach ($property in $noteProperties) {
+            if ($property.Name -eq 'Key') {
+                $keyProperty = $property
+            }
+            elseif ($property.Name -eq 'Value') {
+                $valueProperty = $property
+            }
+        }
+
+        # Windows PowerShell 5.1 can log a hashtable entry as Key/Value.
+        # The value may be an array or object, so replace it whole.
+        if ($noteProperties.Count -eq 2 -and $keyProperty -and $valueProperty -and (Test-FleetSecretLogName -Name ([string]$keyProperty.Value))) {
+            $keyJson = ConvertTo-Json -InputObject ([string]$keyProperty.Value) -Compress
+            return "{`"Key`":$keyJson,`"Value`":`"[REDACTED]`"}"
+        }
+
         $pairs = foreach ($property in $noteProperties) {
-            '{0}:{1}' -f (ConvertTo-Json -InputObject $property.Name -Compress), (ConvertTo-FleetLogJson -InputObject $property.Value -Seen $Seen)
+            $nameJson = ConvertTo-Json -InputObject $property.Name -Compress
+            if (Test-FleetSecretLogName -Name $property.Name) {
+                '{0}:"[REDACTED]"' -f $nameJson
+            }
+            else {
+                '{0}:{1}' -f $nameJson, (ConvertTo-FleetLogJson -InputObject $property.Value -Seen $Seen)
+            }
         }
         return '{' + ($pairs -join ',') + '}'
     }
@@ -77,9 +184,8 @@ function Get-FleetRedactedLogText {
         Redacts passwords, token fields, and bearer tokens in verbose text.
 
     .DESCRIPTION
-        Transcripts and CI capture the verbose stream. Objects are serialized
-        without a depth cutoff, then secret fields are replaced. The request
-        itself still sends the original value.
+        Transcripts and CI capture the verbose stream. Secret keys are removed
+        for any value type. The request itself still sends the original value.
     #>
     [CmdletBinding()]
     param(
@@ -94,6 +200,18 @@ function Get-FleetRedactedLogText {
     if ($Text -isnot [string]) {
         $Text = ConvertTo-FleetLogJson -InputObject $Text
     }
+    else {
+        $trimmed = $Text.Trim()
+        if ($trimmed.StartsWith('{') -or $trimmed.StartsWith('[')) {
+            try {
+                $parsed = $trimmed | ConvertFrom-Json -ErrorAction Stop
+                $Text = ConvertTo-FleetLogJson -InputObject $parsed
+            }
+            catch {
+                Write-Debug 'Verbose text was not JSON.'
+            }
+        }
+    }
 
     if ([string]::IsNullOrEmpty($Text)) {
         return $Text
@@ -104,18 +222,13 @@ function Get-FleetRedactedLogText {
         '(?i)("(?:current_password|new_password|api_token|authorization|password|token|secret)"\s*:\s*")((?:\\.|[^"\\])*)(")',
         '${1}[REDACTED]${3}'
     )
-    # Windows PowerShell 5.1 enumerates a piped hashtable as Key/Value entries.
     $redacted = [regex]::Replace(
         $redacted,
         '(?i)("Key"\s*:\s*"(?:current_password|new_password|api_token|authorization|password|token|secret)"\s*,\s*"Value"\s*:\s*")((?:\\.|[^"\\])*)(")',
         '${1}[REDACTED]${3}'
     )
-    # Depth-limited ConvertTo-Json leaves @{password=secret} fragments.
-    $redacted = [regex]::Replace(
-        $redacted,
-        '(?i)(^|[{;,\s])((?:current_password|new_password|api_token|authorization|password|token|secret)\s*=\s*)([^;}\r\n]+)',
-        '${1}${2}[REDACTED]'
-    )
+    $redacted = Get-FleetRedactedUriText -Text $redacted
+    $redacted = Format-FleetUnsafeSecretLiteral -Text $redacted
     return [regex]::Replace($redacted, '(?i)\bBearer\s+[^\s"\\}]+', 'Bearer [REDACTED]')
 }
 
@@ -184,7 +297,7 @@ function Invoke-FleetDMRequest {
                 $uri = "$uri$separator$queryString"
             }
 
-            Write-Verbose "Full URI with parameters: $uri"
+            Write-Verbose "Full URI with parameters: $(Get-FleetRedactedLogText -Text $uri)"
         }
         Write-Verbose "HTTP Method: $Method"
         # Prepare the request parameters
