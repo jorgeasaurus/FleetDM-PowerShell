@@ -24,6 +24,12 @@ Connect-FleetDM -BaseUri <String> -Credential <PSCredential> [-ProgressAction <A
  [<CommonParameters>]
 ```
 
+### Email
+```
+Connect-FleetDM -BaseUri <String> -Email <String> -Password <SecureString> [-ProgressAction <ActionPreference>]
+ [<CommonParameters>]
+```
+
 ## DESCRIPTION
 Connects to a FleetDM instance using either an API token or email/password credentials.
 The connection is stored at the module level and used by all other FleetDM cmdlets.
@@ -52,6 +58,14 @@ Connect-FleetDM -BaseUri "https://fleet.example.com" -ApiToken (Read-Host -AsSec
 ```
 
 Prompts for API token securely and connects to FleetDM
+
+### EXAMPLE 4
+```
+$password = Read-Host "Password" -AsSecureString
+Connect-FleetDM -BaseUri "https://fleet.example.com" -Email "admin@example.com" -Password $password
+```
+
+Logs in with email and password, the same call as fleetctl login --email --password
 
 ## PARAMETERS
 
@@ -93,6 +107,36 @@ Use this for interactive sessions or when token authentication is not available.
 ```yaml
 Type: PSCredential
 Parameter Sets: Credential
+Aliases:
+
+Required: True
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Email
+Fleet user email. Same value as fleetctl login --email.
+
+```yaml
+Type: String
+Parameter Sets: Email
+Aliases:
+
+Required: True
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Password
+Fleet user password. Same value as fleetctl login --password.
+
+```yaml
+Type: SecureString
+Parameter Sets: Email
 Aliases:
 
 Required: True

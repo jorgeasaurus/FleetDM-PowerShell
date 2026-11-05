@@ -14,8 +14,9 @@ Updates an existing policy in FleetDM
 
 ```
 Set-FleetPolicy [-Id] <Int32> [[-Name] <String>] [[-Query] <String>] [[-Description] <String>]
- [[-Resolution] <String>] [[-Platform] <String>] [-ProgressAction <ActionPreference>] [-WhatIf] [-Confirm]
- [<CommonParameters>]
+ [[-Resolution] <String>] [[-Platform] <String>] [[-FleetId] <Int32>] [-Critical]
+ [[-CalendarEventsEnabled] <Boolean>] [[-SoftwareTitleId] <Int32>] [[-ScriptId] <Int32>]
+ [-ProgressAction <ActionPreference>] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -148,6 +149,81 @@ Aliases:
 Required: False
 Position: 6
 Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -FleetId
+Fleet Premium. Updates a policy on this fleet. Omit it for a global policy.
+
+```yaml
+Type: Int32
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 7
+Default value: 0
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Critical
+Fleet Premium. Marks the policy as critical.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -CalendarEventsEnabled
+Fleet Premium. Enables calendar maintenance events when this fleet policy fails. Requires FleetId.
+
+```yaml
+Type: Boolean
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 8
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -SoftwareTitleId
+Fleet Premium. Installs this software title when the fleet policy fails. Requires FleetId. Use 0 to remove an existing software automation.
+
+```yaml
+Type: Int32
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 9
+Default value: 0
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -ScriptId
+Fleet Premium. Runs this script when the fleet policy fails. Requires FleetId. Use 0 to remove an existing script automation.
+
+```yaml
+Type: Int32
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 10
+Default value: 0
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
