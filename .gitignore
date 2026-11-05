@@ -1,5 +1,9 @@
 # Build outputs
 Output/
+_site/
+.jekyll-cache/
+.sass-cache/
+.jekyll-metadata
 *.zip
 *.nupkg
 

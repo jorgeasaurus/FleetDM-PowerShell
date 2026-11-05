@@ -113,7 +113,7 @@ Accept wildcard characters: False
 ```
 
 ### -ProgressAction
-{{ Fill ProgressAction Description }}
+ProgressAction is a PowerShell common parameter.
 
 ```yaml
 Type: ActionPreference

@@ -1,18 +1,18 @@
-# Jekyll configuration for GitHub Pages
+# Jekyll configuration for GitHub Pages.
+# Layouts, CSS, and navigation live in this repository. pages.yml builds
+# this config with actions/jekyll-build-pages. Do not replace this file
+# during the Documentation workflow.
 title: FleetDM-PowerShell
-description: PowerShell module for FleetDM API integration
+description: PowerShell module for the Fleet REST API. Install, connect, common tasks, and the cmdlet reference.
+version: "2.2.0"
 baseurl: "/FleetDM-PowerShell"
 url: "https://jorgeasaurus.github.io"
 
-# Theme
-theme: jekyll-theme-minimal
-
-# Plugins
 plugins:
   - jekyll-relative-links
   - jekyll-seo-tag
+  - jekyll-optional-front-matter
 
-# Include these files/folders
 include:
   - README.md
   - CONTRIBUTING.md
@@ -20,7 +20,6 @@ include:
   - docs
   - en-US
 
-# Exclude from processing
 exclude:
   - "*.ps1"
   - "*.psm1"
@@ -30,15 +29,21 @@ exclude:
   - Public/
   - Output/
   - build/
+  - vendor/
+  - .jekyll-cache/
   - .github/workflows/documentation.yml
 
-# Enable relative links
 relative_links:
   enabled: true
   collections: true
 
-# Markdown settings
 markdown: kramdown
 kramdown:
   input: GFM
   syntax_highlighter: rouge
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default

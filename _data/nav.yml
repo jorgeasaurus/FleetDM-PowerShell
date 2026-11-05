@@ -1,0 +1,129 @@
+start:
+  - title: Overview
+    url: /
+  - title: Install
+    url: /#install
+  - title: Connect
+    url: /#connect
+  - title: Common tasks
+    url: /#tasks
+  - title: Cmdlet reference
+    url: /#reference
+
+groups:
+  - title: Authentication
+    items:
+      - title: Connect-FleetDM
+        url: /docs/en-US/Connect-FleetDM.html
+      - title: Disconnect-FleetDM
+        url: /docs/en-US/Disconnect-FleetDM.html
+      - title: New-FleetUser
+        url: /docs/en-US/New-FleetUser.html
+
+  - title: Hosts
+    items:
+      - title: Get-FleetHost
+        url: /docs/en-US/Get-FleetHost.html
+      - title: Remove-FleetHost
+        url: /docs/en-US/Remove-FleetHost.html
+      - title: Lock-FleetHost
+        url: /docs/en-US/Lock-FleetHost.html
+      - title: Unlock-FleetHost
+        url: /docs/en-US/Unlock-FleetHost.html
+      - title: Invoke-FleetHostWipe
+        url: /docs/en-US/Invoke-FleetHostWipe.html
+      - title: Get-FleetHostWipeStatus
+        url: /docs/en-US/Get-FleetHostWipeStatus.html
+
+  - title: Policies
+    items:
+      - title: Get-FleetPolicy
+        url: /docs/en-US/Get-FleetPolicy.html
+      - title: New-FleetPolicy
+        url: /docs/en-US/New-FleetPolicy.html
+      - title: Set-FleetPolicy
+        url: /docs/en-US/Set-FleetPolicy.html
+      - title: Get-FleetPolicyAutomation
+        url: /docs/en-US/Get-FleetPolicyAutomation.html
+      - title: Reset-FleetPolicyAutomation
+        url: /docs/en-US/Reset-FleetPolicyAutomation.html
+
+  - title: Queries
+    items:
+      - title: Get-FleetQuery
+        url: /docs/en-US/Get-FleetQuery.html
+      - title: Invoke-FleetQuery
+        url: /docs/en-US/Invoke-FleetQuery.html
+      - title: Invoke-FleetSavedQuery
+        url: /docs/en-US/Invoke-FleetSavedQuery.html
+
+  - title: Software
+    items:
+      - title: Get-FleetSoftware
+        url: /docs/en-US/Get-FleetSoftware.html
+      - title: Install-FleetSoftware
+        url: /docs/en-US/Install-FleetSoftware.html
+      - title: Uninstall-FleetSoftware
+        url: /docs/en-US/Uninstall-FleetSoftware.html
+      - title: Get-FleetSoftwareInstall
+        url: /docs/en-US/Get-FleetSoftwareInstall.html
+      - title: Remove-FleetSoftwarePackage
+        url: /docs/en-US/Remove-FleetSoftwarePackage.html
+      - title: Get-FleetSelfServiceCategory
+        url: /docs/en-US/Get-FleetSelfServiceCategory.html
+      - title: New-FleetSelfServiceCategory
+        url: /docs/en-US/New-FleetSelfServiceCategory.html
+      - title: Set-FleetSelfServiceCategory
+        url: /docs/en-US/Set-FleetSelfServiceCategory.html
+      - title: Remove-FleetSelfServiceCategory
+        url: /docs/en-US/Remove-FleetSelfServiceCategory.html
+
+  - title: Fleets
+    items:
+      - title: Get-FleetTeam
+        url: /docs/en-US/Get-FleetTeam.html
+      - title: New-FleetTeam
+        url: /docs/en-US/New-FleetTeam.html
+      - title: Set-FleetTeam
+        url: /docs/en-US/Set-FleetTeam.html
+      - title: Remove-FleetTeam
+        url: /docs/en-US/Remove-FleetTeam.html
+
+  - title: Scripts
+    items:
+      - title: Get-FleetScript
+        url: /docs/en-US/Get-FleetScript.html
+      - title: Invoke-FleetScript
+        url: /docs/en-US/Invoke-FleetScript.html
+      - title: Remove-FleetScript
+        url: /docs/en-US/Remove-FleetScript.html
+
+  - title: MDM and SSO
+    items:
+      - title: Get-FleetDiskEncryption
+        url: /docs/en-US/Get-FleetDiskEncryption.html
+      - title: Set-FleetDiskEncryption
+        url: /docs/en-US/Set-FleetDiskEncryption.html
+      - title: Set-FleetOsUpdate
+        url: /docs/en-US/Set-FleetOsUpdate.html
+      - title: Set-FleetCalendarEvent
+        url: /docs/en-US/Set-FleetCalendarEvent.html
+      - title: Set-FleetJitProvisioning
+        url: /docs/en-US/Set-FleetJitProvisioning.html
+
+  - title: Core
+    items:
+      - title: Invoke-FleetDMMethod
+        url: /docs/en-US/Invoke-FleetDMMethod.html
+
+project:
+  - title: About
+    url: /docs/en-US/about_FleetDM-PowerShell.help.html
+  - title: Module page
+    url: /docs/en-US/FleetDM-PowerShell.html
+  - title: README
+    url: /README.html
+  - title: Contributing
+    url: /CONTRIBUTING.html
+  - title: License
+    url: /LICENSE
