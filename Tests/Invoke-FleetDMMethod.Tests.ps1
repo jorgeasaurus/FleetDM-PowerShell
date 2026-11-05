@@ -442,5 +442,90 @@ Describe "Invoke-FleetDMMethod Tests" {
             $verboseMessages = $verboseOutput | ForEach-Object { $_.ToString() }
             $verboseMessages -join ' ' | Should -BeLike "*Invoking FleetDM method*"
         }
+
+        It "Should omit passwords from verbose output" {
+            $verboseOutput = Invoke-FleetDMMethod -Endpoint "queries" -Method POST -Body @{
+                name = 'module-test'
+                password = 'ex"ample-password'
+            } -Verbose 4>&1 | Where-Object { $_ -is [System.Management.Automation.VerboseRecord] }
+
+            $log = $verboseOutput | ForEach-Object { $_.ToString() } | Out-String
+            $log | Should -Not -Match 'ample-password'
+            $log | Should -Match '\[REDACTED\]'
+
+            Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -Times 1 -ParameterFilter {
+                $Body.password -eq 'ex"ample-password'
+            }
+        }
+
+        It "Should redact secrets nested deeper than ConvertTo-Json depth 10" {
+            $node = [pscustomobject]@{
+                label         = 'keep-visible'
+                password      = 'REDACT-TEST-PASSWORD'
+                token         = 'gg_test_not_a_real_secret'
+                authorization = 'Bearer gg_test_not_a_real_bearer'
+            }
+            # ConvertTo-Json -Depth 10 stringifies the next object as @{password=...}.
+            # Depth 2, the cmdlet's previous default, does the same much earlier.
+            for ($i = 0; $i -lt 11; $i++) {
+                $node = [pscustomobject]@{ child = $node }
+            }
+
+            $verboseOutput = Invoke-FleetDMMethod -Endpoint 'queries' -Method POST -Body @{
+                name    = 'module-test'
+                profile = $node
+            } -Verbose 4>&1 | Where-Object { $_ -is [System.Management.Automation.VerboseRecord] }
+
+            $log = $verboseOutput | ForEach-Object { $_.ToString() } | Out-String
+            $log | Should -Match 'keep-visible'
+            $log | Should -Match '\[REDACTED\]'
+            $log | Should -Not -Match 'REDACT-TEST-PASSWORD'
+            $log | Should -Not -Match 'gg_test_not_a_real_secret'
+            $log | Should -Not -Match 'gg_test_not_a_real_bearer'
+
+            Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -Times 1 -ParameterFilter {
+                $cursor = $Body.profile
+                while ($cursor.PSObject.Properties.Name -contains 'child') {
+                    $cursor = $cursor.child
+                }
+                $cursor.password -eq 'REDACT-TEST-PASSWORD' -and
+                $cursor.token -eq 'gg_test_not_a_real_secret' -and
+                $cursor.authorization -eq 'Bearer gg_test_not_a_real_bearer' -and
+                $cursor.label -eq 'keep-visible'
+            }
+        }
+
+        It "Should redact secrets nested past the ConvertTo-Json maximum depth" {
+            $node = [pscustomobject]@{
+                label         = 'keep-visible-deep'
+                password      = 'REDACT-TEST-PASSWORD-DEEP'
+                token         = 'gg_test_not_a_real_secret_deep'
+                authorization = 'Bearer gg_test_not_a_real_bearer_deep'
+            }
+            for ($i = 0; $i -lt 101; $i++) {
+                $node = [pscustomobject]@{ child = $node }
+            }
+
+            $verboseOutput = Invoke-FleetDMMethod -Endpoint 'queries' -Method POST -Body @{
+                name    = 'module-test'
+                profile = $node
+            } -Verbose 4>&1 | Where-Object { $_ -is [System.Management.Automation.VerboseRecord] }
+
+            $log = $verboseOutput | ForEach-Object { $_.ToString() } | Out-String
+            $log | Should -Match 'keep-visible-deep'
+            $log | Should -Match '\[REDACTED\]'
+            $log | Should -Not -Match 'REDACT-TEST-PASSWORD-DEEP'
+            $log | Should -Not -Match 'gg_test_not_a_real_secret_deep'
+            $log | Should -Not -Match 'gg_test_not_a_real_bearer_deep'
+
+            Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -Times 1 -ParameterFilter {
+                $cursor = $Body.profile
+                while ($cursor.PSObject.Properties.Name -contains 'child') {
+                    $cursor = $cursor.child
+                }
+                $cursor.password -eq 'REDACT-TEST-PASSWORD-DEEP' -and
+                $cursor.authorization -eq 'Bearer gg_test_not_a_real_bearer_deep'
+            }
+        }
     }
 }

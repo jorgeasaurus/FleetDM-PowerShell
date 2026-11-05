@@ -68,7 +68,7 @@
             LicenseUri = 'https://github.com/Jorgeasaurus/FleetDM-PowerShell/blob/main/LICENSE'
             ProjectUri = 'https://github.com/Jorgeasaurus/FleetDM-PowerShell'
             IconUri = ''
-            ReleaseNotes = 'Version 2.2.0 - Fixes pagination, query routing, host filters, and Premium license errors. Adds Fleet Premium cmdlets for fleets, software install, self-service, scripts, MDM, host wipe, OS updates, policy automations, calendar, and SSO JIT provisioning. Adds email login and New-FleetUser.'
+            ReleaseNotes = 'Version 2.2.0 - Fixes pagination, query routing, host filters, and Premium license errors. Adds Fleet Premium cmdlets for fleets, software install, self-service, scripts, MDM, host wipe, OS updates, policy automations, calendar, and SSO JIT provisioning. Adds email login and New-FleetUser. Verbose logs redact passwords and bearer tokens.'
             Prerelease = ''
             RequireLicenseAcceptance = $false
             ExternalModuleDependencies = @()

@@ -97,12 +97,12 @@ function Invoke-FleetDMMethod {
         
         if ($Body) {
             $requestParams['Body'] = $Body
-            Write-Verbose "Request body: $($Body | ConvertTo-Json -Compress)"
+            Write-Verbose "Request body: $(Get-FleetRedactedLogText -Text $Body)"
         }
         
         if ($QueryParameters) {
             $requestParams['QueryParameters'] = $QueryParameters
-            Write-Verbose "Query parameters: $($QueryParameters | ConvertTo-Json -Compress)"
+            Write-Verbose "Query parameters: $(Get-FleetRedactedLogText -Text $QueryParameters)"
         }
         
         if ($FollowPagination) {
