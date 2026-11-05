@@ -57,7 +57,7 @@ function Invoke-FleetDMMethod {
     .LINK
         https://fleetdm.com/docs/using-fleet/rest-api
     #>
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
@@ -109,6 +109,10 @@ function Invoke-FleetDMMethod {
             $requestParams['FollowPagination'] = $true
         }
         
+        if ($Method -ne 'GET' -and -not $PSCmdlet.ShouldProcess($Endpoint, $Method)) {
+            return
+        }
+
         try {
             $result = Invoke-FleetDMRequest @requestParams
             

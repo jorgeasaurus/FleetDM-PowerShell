@@ -1,11 +1,11 @@
 @{
     RootModule = 'FleetDM-PowerShell.psm1'
-    ModuleVersion = '2.1.0'
+    ModuleVersion = '2.2.0'
     GUID = 'a7c4b8f3-2d1e-4f5a-9c8b-1e3d5a7f9b2c'
     Author = 'Jorge Suarez'
     CompanyName = 'Jorgeasaurus'
     Copyright = '(c) 2025 Jorgeasaurus. All rights reserved.'
-    Description = 'Lightweight PowerShell module for FleetDM API integration. Provides cmdlets for managing hosts, queries, policies, and software inventory without requiring Premium licenses or external dependencies.'
+    Description = 'PowerShell module for the FleetDM REST API. Free-tier cmdlets cover hosts, reports, policies, software inventory, and company-owned Android wipe. Fleet Premium cmdlets cover fleets, software installers, self-service, scripts, MDM, host wipe for other platforms, OS updates, policy automations, calendar, and SSO JIT provisioning.'
     PowerShellVersion = '5.1'
     CompatiblePSEditions = @('Desktop', 'Core')
 
@@ -13,6 +13,7 @@
     FunctionsToExport = @(
         'Connect-FleetDM',
         'Disconnect-FleetDM',
+        'New-FleetUser',
         'Get-FleetHost',
         'Remove-FleetHost',
         'Get-FleetQuery',
@@ -23,7 +24,32 @@
         'Set-FleetPolicy',
         'Get-FleetSoftware',
         'Invoke-FleetDMMethod',
-        'ConvertFrom-JamfXmlToFleetYaml'
+        'Get-FleetTeam',
+        'New-FleetTeam',
+        'Set-FleetTeam',
+        'Remove-FleetTeam',
+        'Install-FleetSoftware',
+        'Uninstall-FleetSoftware',
+        'Get-FleetSoftwareInstall',
+        'Remove-FleetSoftwarePackage',
+        'Get-FleetSelfServiceCategory',
+        'New-FleetSelfServiceCategory',
+        'Set-FleetSelfServiceCategory',
+        'Remove-FleetSelfServiceCategory',
+        'Lock-FleetHost',
+        'Unlock-FleetHost',
+        'Invoke-FleetHostWipe',
+        'Get-FleetHostWipeStatus',
+        'Get-FleetDiskEncryption',
+        'Set-FleetDiskEncryption',
+        'Set-FleetOsUpdate',
+        'Set-FleetCalendarEvent',
+        'Get-FleetPolicyAutomation',
+        'Reset-FleetPolicyAutomation',
+        'Get-FleetScript',
+        'Invoke-FleetScript',
+        'Remove-FleetScript',
+        'Set-FleetJitProvisioning'
     )
 
     # Cmdlets to export from this module
@@ -42,7 +68,7 @@
             LicenseUri = 'https://github.com/Jorgeasaurus/FleetDM-PowerShell/blob/main/LICENSE'
             ProjectUri = 'https://github.com/Jorgeasaurus/FleetDM-PowerShell'
             IconUri = ''
-            ReleaseNotes = 'Version 2.1.0 - Added ConvertFrom-JamfXmlToFleetYaml function for converting Jamf Pro exports to FleetDM GitOps format.'
+            ReleaseNotes = 'Version 2.2.0 - Fixes pagination, query routing, host filters, and Premium license errors. Adds Fleet Premium cmdlets for fleets, software install, self-service, scripts, MDM, host wipe, OS updates, policy automations, calendar, and SSO JIT provisioning. Adds email login and New-FleetUser.'
             Prerelease = ''
             RequireLicenseAcceptance = $false
             ExternalModuleDependencies = @()

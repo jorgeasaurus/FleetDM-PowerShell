@@ -21,30 +21,36 @@ BeforeAll {
         param($Endpoint, $Method, $QueryParameters)
         
         # Mock software retrieval responses
-        if ($Endpoint -eq "software") {
+        if ($Endpoint -eq "software" -or $Endpoint -eq "software/versions") {
+            $allSoftware = @(
+                @{
+                    id = 1
+                    name = "Google Chrome"
+                    version = "96.0.4664.110"
+                    source = "deb_packages"
+                    hosts_count = 10
+                    vulnerabilities = @()
+                },
+                @{
+                    id = 2
+                    name = "Mozilla Firefox"
+                    version = "95.0.2"
+                    source = "deb_packages"
+                    hosts_count = 5
+                    vulnerabilities = @()
+                }
+            )
+            $pageIndex = 0
+            $pageSize = $allSoftware.Count
+            if ($QueryParameters -and $null -ne $QueryParameters.page) { $pageIndex = [int]$QueryParameters.page }
+            if ($QueryParameters -and $QueryParameters.per_page) { $pageSize = [int]$QueryParameters.per_page }
+            $slice = @($allSoftware | Select-Object -Skip ($pageIndex * $pageSize) -First $pageSize)
             return @{
-                software = @(
-                    @{
-                        id = 1
-                        name = "Google Chrome"
-                        version = "96.0.4664.110" 
-                        source = "deb_packages"
-                        hosts_count = 10
-                        vulnerabilities = @()
-                    },
-                    @{
-                        id = 2
-                        name = "Mozilla Firefox"
-                        version = "95.0.2"
-                        source = "deb_packages" 
-                        hosts_count = 5
-                        vulnerabilities = @()
-                    }
-                )
-                count = 2
+                software = $slice
+                count = $allSoftware.Count
             }
         }
-        elseif ($Endpoint -match "^software/(\d+)$") {
+        elseif ($Endpoint -match "^software/(?:versions/)?(\d+)$") {
             $softwareId = [int]$matches[1]
             if ($softwareId -eq 999999) {
                 throw "Software not found"

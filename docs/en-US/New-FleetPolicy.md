@@ -14,7 +14,9 @@ Creates a new policy in FleetDM
 
 ```
 New-FleetPolicy [-Name] <String> [-Query] <String> [[-Description] <String>] [[-Resolution] <String>]
- [[-Platform] <String>] [-ProgressAction <ActionPreference>] [-WhatIf] [-Confirm] [<CommonParameters>]
+ [[-Platform] <String>] [[-FleetId] <Int32>] [-Critical] [[-CalendarEventsEnabled] <Boolean>]
+ [[-SoftwareTitleId] <Int32>] [[-ScriptId] <Int32>] [[-LabelIncludeAny] <String[]>]
+ [-ProgressAction <ActionPreference>] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -127,6 +129,96 @@ Aliases:
 Required: False
 Position: 5
 Default value: All
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -FleetId
+Fleet Premium. Creates the policy on this fleet instead of as a global policy.
+
+```yaml
+Type: Int32
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 6
+Default value: 0
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Critical
+Fleet Premium. Marks the policy as critical.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -CalendarEventsEnabled
+Fleet Premium. Enables calendar maintenance events when this fleet policy fails. Requires FleetId.
+
+```yaml
+Type: Boolean
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 7
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -SoftwareTitleId
+Fleet Premium. Installs this software title when the fleet policy fails. Requires FleetId.
+
+```yaml
+Type: Int32
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 8
+Default value: 0
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -ScriptId
+Fleet Premium. Runs this script when the fleet policy fails. Requires FleetId.
+
+```yaml
+Type: Int32
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 9
+Default value: 0
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -LabelIncludeAny
+Fleet Premium. Hosts must match one of these label names.
+
+```yaml
+Type: String[]
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 10
+Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
 ```

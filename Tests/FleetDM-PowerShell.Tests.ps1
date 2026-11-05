@@ -70,8 +70,8 @@ BeforeAll {
                 )
             }
         }
-        elseif ($Uri -like "*/api/v1/fleet/queries*") {
-            if ($Uri -match "/queries/(\d+)") {
+        elseif ($Uri -like "*/api/v1/fleet/queries*" -or $Uri -like "*/api/v1/fleet/reports*") {
+            if ($Uri -match "/(?:queries|reports)/(\d+)") {
                 $queryId = [int]$Matches[1]
                 if ($queryId -eq 999999) {
                     throw "Resource not found"
@@ -207,7 +207,7 @@ BeforeAll {
                 }
             }
         }
-        elseif ($Endpoint -eq "queries" -and $Method -eq "POST") {
+        elseif (($Endpoint -eq "queries" -or $Endpoint -eq "reports") -and $Method -eq "POST") {
             # Creating a temporary query
             return @{
                 query = @{
@@ -217,20 +217,20 @@ BeforeAll {
                 }
             }
         }
-        elseif ($Endpoint -eq "queries") {
+        elseif ($Endpoint -eq "queries" -or $Endpoint -eq "reports") {
             return @(
                 @{ id = 1; name = "Operating System Information"; query = "SELECT * FROM os_version;" }
                 @{ id = 2; name = "System Info"; query = "SELECT * FROM system_info;" }
             )
         }
-        elseif ($Endpoint -eq "queries/run") {
+        elseif ($Endpoint -eq "queries/run" -or $Endpoint -eq "reports/run") {
             return @{
                 campaign = @{ id = 123; status = "running" }
             }
         }
-        elseif ($Endpoint -match "queries/(\d+)/run") {
+        elseif ($Endpoint -match "(queries|reports)/(\d+)/run") {
             # Saved query execution endpoint
-            $queryId = [int]$Matches[1]
+            $queryId = [int]$Matches[2]
             return @{
                 query_id = $queryId
                 targeted_host_count = 1
@@ -243,8 +243,8 @@ BeforeAll {
                 )
             }
         }
-        elseif ($Endpoint -match "queries/(\d+)$") {
-            $queryId = [int]$Matches[1]
+        elseif ($Endpoint -match "(queries|reports)/(\d+)$") {
+            $queryId = [int]$Matches[2]
             if ($queryId -eq 999999) {
                 return $null
             }
@@ -547,7 +547,7 @@ Describe "FleetDM-PowerShell Module Tests" {
                 # Mock should return null for invalid query ID which will cause an error
                 Mock Invoke-FleetDMRequest {
                     throw "Query not found"
-                } -ParameterFilter { $Endpoint -eq "queries/999999/run" } -ModuleName FleetDM-PowerShell
+                } -ParameterFilter { $Endpoint -eq "reports/999999/run" } -ModuleName FleetDM-PowerShell
                 
                 { Invoke-FleetSavedQuery -QueryId 999999 -HostId 1 } | Should -Throw
             }

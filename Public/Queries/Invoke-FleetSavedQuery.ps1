@@ -74,7 +74,7 @@ function Invoke-FleetSavedQuery {
             # Note: Timeout is handled by the server-side FLEET_LIVE_QUERY_REST_PERIOD setting
             Write-Verbose "Note: Query timeout is controlled by server configuration (FLEET_LIVE_QUERY_REST_PERIOD)"
             
-            $result = Invoke-FleetDMRequest -Endpoint "queries/$QueryId/run" -Method POST -Body $body
+            $result = Invoke-FleetDMRequest -Endpoint "reports/$QueryId/run" -Method POST -Body $body
             
             # Process and format results
             $formattedResult = [PSCustomObject]@{

@@ -21,20 +21,6 @@ function Get-FleetPaginatedData {
         [switch]$ReturnMetadata
     )
     
-    # Known collection property names in FleetDM responses
-    $collectionProperties = @(
-        'hosts',
-        'policies', 
-        'queries',
-        'software',
-        'users',
-        'teams',
-        'labels',
-        'targets',
-        'results',
-        'vulnerabilities'
-    )
-    
     $result = @{
         Data = $null
         HasMore = $false
@@ -57,14 +43,28 @@ function Get-FleetPaginatedData {
         return $Response
     }
     
-    # If response is an object, look for known collection properties
+    # A list envelope has one collection, plus meta and scalar counts.
+    # Windows PowerShell 5.1 ConvertFrom-Json unwraps a one-element JSON
+    # array into a scalar, so that collection is not always an IList.
+    # An actual list wins over a nested object. An empty list stays empty.
     if ($Response -is [System.Management.Automation.PSCustomObject]) {
-        # Check for collection properties
-        foreach ($prop in $collectionProperties) {
-            if ($Response.PSObject.Properties.Name -contains $prop) {
-                $result.Data = $Response.$prop
+        $collection = $null
+        $unwrapped = $null
+        foreach ($prop in $Response.PSObject.Properties) {
+            if ($prop.Name -eq 'meta' -or $null -eq $prop.Value) { continue }
+            $value = $prop.Value
+            if ($value -is [string] -or $value -is [System.ValueType]) { continue }
+            if ($value -is [System.Collections.IList]) {
+                $collection = $value
                 break
             }
+            if ($null -eq $unwrapped) { $unwrapped = $value }
+        }
+        if ($null -eq $collection -and $null -ne $unwrapped) {
+            $collection = @($unwrapped)
+        }
+        if ($null -ne $collection) {
+            $result.Data = $collection
         }
         
         # If no collection found, return the whole response as data

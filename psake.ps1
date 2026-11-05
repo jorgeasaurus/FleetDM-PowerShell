@@ -38,9 +38,10 @@ Task Init {
     # Set location to project root
     Set-Location $ProjectRoot
     
-    # Set build environment variables
+    # Set build environment variables. Qualify BuildHelpers: psake 5 has a
+    # private parameterless Set-BuildEnvironment, and tasks run in that module.
     if (Get-Module BuildHelpers -ListAvailable) {
-        Set-BuildEnvironment -Force
+        BuildHelpers\Set-BuildEnvironment -Force
     }
 }
 

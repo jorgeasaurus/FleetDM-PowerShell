@@ -248,7 +248,7 @@ If you encounter issues:
 
 - FleetDM Documentation: https://fleetdm.com/docs
 - FleetDM API Reference: https://fleetdm.com/docs/using-fleet/rest-api
-- Module Repository: https://github.com/yourorg/FleetDM-PowerShell
+- Module Repository: https://github.com/Jorgeasaurus/FleetDM-PowerShell
 
 ## KEYWORDS
 - FleetDM

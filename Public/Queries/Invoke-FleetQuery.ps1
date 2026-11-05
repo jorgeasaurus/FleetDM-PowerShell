@@ -116,7 +116,7 @@ function Invoke-FleetQuery {
                     observer_can_run = $false
                 }
                 
-                $tempQuery = Invoke-FleetDMRequest -Endpoint 'queries' -Method POST -Body $createBody
+                $tempQuery = Invoke-FleetDMRequest -Endpoint 'reports' -Method POST -Body $createBody
                 
                 if (-not $tempQuery.query -or -not $tempQuery.query.id) {
                     throw "Failed to create temporary query"
@@ -138,7 +138,8 @@ function Invoke-FleetQuery {
                 if ($tempQuery -and $tempQuery.query.id) {
                     try {
                         Write-Verbose "Cleaning up temporary query ID: $($tempQuery.query.id)"
-                        $null = Invoke-FleetDMRequest -Endpoint "queries/$($tempQuery.query.id)" -Method DELETE
+                        # DELETE /reports/{name} deletes by name. Numeric IDs must use /reports/id/{id}.
+                        $null = Invoke-FleetDMRequest -Endpoint "reports/id/$($tempQuery.query.id)" -Method DELETE
                         Write-Verbose "Temporary query cleaned up successfully"
                     }
                     catch {
@@ -192,7 +193,7 @@ function Invoke-FleetQuery {
         
         try {
             # Execute the query
-            $result = Invoke-FleetDMRequest -Endpoint 'queries/run' -Method POST -Body $body
+            $result = Invoke-FleetDMRequest -Endpoint 'reports/run' -Method POST -Body $body
             
             # Add custom type for formatting
             $result.PSObject.TypeNames.Insert(0, 'FleetDM.QueryExecution')
@@ -206,85 +207,14 @@ function Invoke-FleetQuery {
             }
             
             Write-Verbose "Query campaign started with ID: $campaignId"
-            
+
             if ($Wait) {
-                Write-Host "Waiting for query results..." -NoNewline
-                
-                $startTime = Get-Date
-                $dots = 0
-                
-                while ((Get-Date) -lt $startTime.AddSeconds($MaxWaitTime)) {
-                    Start-Sleep -Seconds 2
-                    
-                    # Show progress dots
-                    if ($dots -lt 10) {
-                        Write-Host "." -NoNewline
-                        $dots++
-                    }
-                    else {
-                        Write-Host "`b`b`b`b`b`b`b`b`b`b          `b`b`b`b`b`b`b`b`b`b" -NoNewline
-                        $dots = 0
-                    }
-                    
-                    # Check campaign status
-                    try {
-                        $campaign = Invoke-FleetDMRequest -Endpoint "queries/results/$campaignId" -Method GET
-                        
-                        if ($campaign.campaign.status -eq 'finished') {
-                            Write-Host " Done!" -ForegroundColor Green
-                            
-                            # Create result object with campaign results
-                            $finalResult = [PSCustomObject]@{
-                                PSTypeName = 'FleetDM.QueryResult'
-                                Campaign = $campaign.campaign
-                                Results = $campaign.results
-                                Errors = $campaign.errors
-                                Stats = @{
-                                    TotalHosts = $campaign.campaign.totals.count
-                                    OnlineHosts = $campaign.campaign.totals.online
-                                    OfflineHosts = $campaign.campaign.totals.offline
-                                    MissingInActionHosts = $campaign.campaign.totals.missing_in_action
-                                    ResultsReceived = $campaign.results.Count
-                                }
-                            }
-                            
-                            return $finalResult
-                        }
-                    }
-                    catch {
-                        # Ignore errors while polling
-                        Write-Verbose "Error checking campaign status: $_"
-                    }
-                }
-                
-                Write-Host " Timeout!" -ForegroundColor Yellow
-                Write-Warning "Query execution timed out after $MaxWaitTime seconds. Campaign ID: $campaignId"
-                
-                # Try to get partial results
-                try {
-                    $campaign = Invoke-FleetDMRequest -Endpoint "queries/results/$campaignId" -Method GET
-                    
-                    $partialResult = [PSCustomObject]@{
-                        PSTypeName = 'FleetDM.QueryResult'
-                        Campaign = $campaign.campaign
-                        Results = $campaign.results
-                        Errors = $campaign.errors
-                        Stats = @{
-                            TotalHosts = $campaign.campaign.totals.count
-                            OnlineHosts = $campaign.campaign.totals.online
-                            OfflineHosts = $campaign.campaign.totals.offline
-                            MissingInActionHosts = $campaign.campaign.totals.missing_in_action
-                            ResultsReceived = $campaign.results.Count
-                        }
-                        Partial = $true
-                    }
-                    
-                    Write-Warning "Returning partial results. Query may still be running."
-                    return $partialResult
-                }
-                catch {
-                    Write-Error "Failed to retrieve partial results: $_"
-                }
+                Write-Verbose "MaxWaitTime ($MaxWaitTime seconds) applies to synchronous host queries. Campaign rows are not polled."
+                # Campaign results are delivered on the Fleet websocket. There is
+                # no REST endpoint at queries/results/{id}. Host-targeted runs
+                # use the synchronous reports or hosts query endpoints instead.
+                Write-Warning "Campaign $campaignId was started. Fleet does not return live campaign rows over REST; open the campaign in Fleet or target specific host IDs to receive results in this session."
+                return $result
             }
             else {
                 # Return campaign info without waiting

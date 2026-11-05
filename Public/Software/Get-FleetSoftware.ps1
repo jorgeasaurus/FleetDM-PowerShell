@@ -21,6 +21,28 @@ function Get-FleetSoftware {
     
     .PARAMETER VulnerableOnly
         Only return software with known vulnerabilities
+
+    .PARAMETER FleetId
+        Fleet Premium. Limits software to hosts in this fleet. Use 0 for unassigned hosts.
+
+    .PARAMETER AvailableForInstall
+        Only return software that has an installer. Installers require Fleet Premium.
+
+    .PARAMETER SelfService
+        Fleet Premium. Only return self-service software.
+
+    .PARAMETER MinCvssScore
+        Fleet Premium. Minimum CVSS v3 score, exclusive of scores below this value.
+
+    .PARAMETER MaxCvssScore
+        Fleet Premium. Maximum CVSS v3 score.
+
+    .PARAMETER Exploit
+        Fleet Premium. Only return software with a CISA known exploited vulnerability.
+
+    .NOTES
+        FleetId, SelfService, MinCvssScore, MaxCvssScore, and Exploit require Fleet Premium.
+        https://fleetdm.com/docs/rest-api/rest-api#list-software-versions
     
     .PARAMETER Page
         Page number for pagination (0-based)
@@ -74,6 +96,28 @@ function Get-FleetSoftware {
         
         [Parameter(ParameterSetName = 'List')]
         [switch]$VulnerableOnly,
+
+        [Parameter(ParameterSetName = 'List')]
+        [Parameter(ParameterSetName = 'ById')]
+        [ValidateRange(0, [int]::MaxValue)]
+        [int]$FleetId,
+
+        [Parameter(ParameterSetName = 'List')]
+        [switch]$AvailableForInstall,
+
+        [Parameter(ParameterSetName = 'List')]
+        [switch]$SelfService,
+
+        [Parameter(ParameterSetName = 'List')]
+        [ValidateRange(0, 10)]
+        [double]$MinCvssScore,
+
+        [Parameter(ParameterSetName = 'List')]
+        [ValidateRange(0, 10)]
+        [double]$MaxCvssScore,
+
+        [Parameter(ParameterSetName = 'List')]
+        [switch]$Exploit,
         
         [Parameter(ParameterSetName = 'List')]
         [int]$Page,
@@ -83,7 +127,7 @@ function Get-FleetSoftware {
         [int]$PerPage = 100,
         
         [Parameter(ParameterSetName = 'List')]
-        [ValidateSet('name', 'hosts_count', 'cve_published', 'cve_resolved')]
+        [ValidateSet('name', 'hosts_count', 'cve_published', 'cvss_score', 'epss_probability', 'cisa_known_exploit')]
         [string]$OrderKey,
         
         [Parameter(ParameterSetName = 'List')]
@@ -94,12 +138,16 @@ function Get-FleetSoftware {
     process {
         if ($PSCmdlet.ParameterSetName -eq 'ById') {
             # Get specific software
-            $endpoint = "software/$Id"
+            $endpoint = "software/versions/$Id"
             
             Write-Verbose "Retrieving software with ID: $Id"
             
             try {
-                $result = Invoke-FleetDMRequest -Endpoint $endpoint -Method GET
+                $versionQuery = @{}
+                if ($PSBoundParameters.ContainsKey('FleetId')) {
+                    $versionQuery['fleet_id'] = $FleetId
+                }
+                $result = Invoke-FleetDMRequest -Endpoint $endpoint -Method GET -QueryParameters $versionQuery
                 
                 # Add custom type for formatting
                 if ($result.software) {
@@ -121,7 +169,9 @@ function Get-FleetSoftware {
         }
         else {
             # List software with filters
-            $endpoint = "software"
+            # available_for_install and self_service are software title filters.
+            $useTitles = $AvailableForInstall -or $SelfService
+            $endpoint = if ($useTitles) { 'software/titles' } else { 'software/versions' }
             $queryParams = @{
                 per_page = $PerPage
             }
@@ -150,7 +200,43 @@ function Get-FleetSoftware {
             }
             
             if ($Cve) {
-                $queryParams['cve'] = $Cve
+                if ($useTitles) {
+                    # Titles have no cve query parameter. MatchQuery searches the title name and the CVE id.
+                    if (-not $Name) {
+                        $queryParams['query'] = $Cve
+                    }
+                }
+                else {
+                    $queryParams['cve'] = $Cve
+                    if (-not $Name) {
+                        # List software versions searches CVE text through query.
+                        $queryParams['query'] = $Cve
+                    }
+                }
+            }
+
+            if ($PSBoundParameters.ContainsKey('FleetId')) {
+                $queryParams['fleet_id'] = $FleetId
+            }
+
+            if ($AvailableForInstall) {
+                $queryParams['available_for_install'] = 'true'
+            }
+
+            if ($SelfService) {
+                $queryParams['self_service'] = 'true'
+            }
+
+            if ($PSBoundParameters.ContainsKey('MinCvssScore')) {
+                $queryParams['min_cvss_score'] = $MinCvssScore
+            }
+
+            if ($PSBoundParameters.ContainsKey('MaxCvssScore')) {
+                $queryParams['max_cvss_score'] = $MaxCvssScore
+            }
+
+            if ($Exploit) {
+                $queryParams['exploit'] = 'true'
             }
             
             Write-Verbose "Query parameters: $($queryParams | ConvertTo-Json -Compress)"
@@ -164,7 +250,10 @@ function Get-FleetSoftware {
             else {
                 $response = Invoke-FleetDMRequest -Endpoint $endpoint -QueryParameters $queryParams
                 # Handle response structure - API returns object with software array
-                if ($response -and $response.PSObject.Properties.Name -contains 'software') {
+                if ($useTitles -and $response -and $null -ne $response.software_titles) {
+                    $result = $response.software_titles
+                }
+                elseif ($response -and $null -ne $response.software) {
                     $result = $response.software
                 }
                 else {
@@ -172,33 +261,67 @@ function Get-FleetSoftware {
                 }
             }
             
-            # Apply client-side filtering if needed
+            # Apply client-side filtering if needed.
+            # Title search uses one query string. When -Name already occupies it, -Cve
+            # must still be applied to versions[].vulnerabilities.
+            if ($useTitles -and $Cve -and $result) {
+                $result = @($result | Where-Object {
+                    @($_.versions.vulnerabilities | ForEach-Object { if ($_ -is [string]) { $_ } else { $_.cve } }) -like "*$Cve*"
+                })
+                Write-Verbose "Filtered to $($result.Count) software titles matching CVE '*$Cve*'"
+            }
+
             if ($Version -and $result) {
-                $result = $result | Where-Object { $_.version -like "*$Version*" }
+                if ($useTitles) {
+                    $result = @($result | Where-Object {
+                        @($_.versions) | Where-Object { $_.version -like "*$Version*" }
+                    })
+                }
+                else {
+                    $result = $result | Where-Object { $_.version -like "*$Version*" }
+                }
                 Write-Verbose "Filtered to $($result.Count) software items matching version '*$Version*'"
             }
             
-            # Add custom type for formatting
+            # Add custom type for formatting. Wrap a single object so Windows
+            # PowerShell 5.1 still applies calculated properties.
             if ($result) {
+                if ($result -isnot [System.Collections.IList]) {
+                    $result = @($result)
+                }
                 for ($i = 0; $i -lt $result.Count; $i++) {
                     $result[$i].PSObject.TypeNames.Insert(0, 'FleetDM.Software')
                     
+                    # Title rows keep vulnerabilities on versions[], not on the title.
+                    $vulnerabilities = @()
+                    if ($useTitles) {
+                        foreach ($softwareVersion in @($result[$i].versions)) {
+                            if ($softwareVersion.vulnerabilities) {
+                                $vulnerabilities += @($softwareVersion.vulnerabilities)
+                            }
+                        }
+                    }
+                    elseif ($result[$i].vulnerabilities) {
+                        $vulnerabilities = @($result[$i].vulnerabilities)
+                    }
+
                     # Add calculated properties
-                    if ($result[$i].vulnerabilities) {
-                        $cveCount = @($result[$i].vulnerabilities).Count
+                    if ($vulnerabilities.Count -gt 0) {
+                        $cveCount = $vulnerabilities.Count
                         Add-Member -InputObject $result[$i] -MemberType NoteProperty -Name 'cve_count' -Value $cveCount -Force
                         
-                        # Find highest severity - handle cases where severity might be missing
-                        $severities = @($result[$i].vulnerabilities | Where-Object { $_.severity } | ForEach-Object { $_.severity })
-                        $highestSeverity = if ($severities.Count -eq 0 -and $result[$i].vulnerabilities.Count -gt 0) {
-                                              # Has vulnerabilities but no severity info - default to 'medium'
-                                              'medium'
-                                          }
-                                          elseif ($severities -contains 'critical') { 'critical' }
-                                          elseif ($severities -contains 'high') { 'high' }
-                                          elseif ($severities -contains 'medium') { 'medium' }
-                                          elseif ($severities -contains 'low') { 'low' }
-                                          else { 'none' }
+                        # Title CVE ids are strings and have no severity. Version rows are objects.
+                        $vulnerabilityObjects = @($vulnerabilities | Where-Object { $_ -isnot [string] })
+                        $severities = @($vulnerabilityObjects | Where-Object { $_.severity } | ForEach-Object { $_.severity })
+                        $highestSeverity = 'none'
+                        if ($severities.Count -eq 0 -and $vulnerabilityObjects.Count -gt 0) {
+                            # Has vulnerability objects but no severity info
+                            $highestSeverity = 'medium'
+                        }
+                        elseif ($severities -contains 'critical') { $highestSeverity = 'critical' }
+                        elseif ($severities -contains 'high') { $highestSeverity = 'high' }
+                        elseif ($severities -contains 'medium') { $highestSeverity = 'medium' }
+                        elseif ($severities -contains 'low') { $highestSeverity = 'low' }
                         
                         Add-Member -InputObject $result[$i] -MemberType NoteProperty -Name 'highest_severity' -Value $highestSeverity -Force
                     }

@@ -20,6 +20,29 @@ function New-FleetPolicy {
     
     .PARAMETER Platform
         The platform this policy applies to (windows, linux, darwin, chrome, or all)
+
+    .PARAMETER FleetId
+        Fleet Premium. Creates the policy on this fleet instead of as a global policy.
+
+    .PARAMETER Critical
+        Fleet Premium. Marks the policy as critical.
+
+    .PARAMETER CalendarEventsEnabled
+        Fleet Premium. Enables calendar maintenance events when this fleet policy fails. Requires FleetId.
+
+    .PARAMETER SoftwareTitleId
+        Fleet Premium. Installs this software title when the fleet policy fails. Requires FleetId.
+
+    .PARAMETER ScriptId
+        Fleet Premium. Runs this script when the fleet policy fails. Requires FleetId.
+
+    .PARAMETER LabelIncludeAny
+        Fleet Premium. Hosts must match one of these label names.
+
+    .NOTES
+        FleetId, Critical, calendar events, software install automation, script automation, and label targeting require Fleet Premium.
+        https://fleetdm.com/docs/rest-api/rest-api#create-policy
+        https://fleetdm.com/docs/rest-api/rest-api#create-fleet-level-policy
     
     .EXAMPLE
         New-FleetPolicy -Name "Firewall Enabled" -Query "SELECT 1 FROM windows_firewall WHERE enabled = 1;"
@@ -66,7 +89,22 @@ function New-FleetPolicy {
         
         [Parameter()]
         [ValidateSet('windows', 'linux', 'darwin', 'chrome', 'all')]
-        [string]$Platform = 'all'
+        [string]$Platform = 'all',
+
+        [ValidateRange(0, [int]::MaxValue)]
+        [int]$FleetId,
+
+        [switch]$Critical,
+
+        [bool]$CalendarEventsEnabled,
+
+        [ValidateRange(1, [int]::MaxValue)]
+        [int]$SoftwareTitleId,
+
+        [ValidateRange(1, [int]::MaxValue)]
+        [int]$ScriptId,
+
+        [string[]]$LabelIncludeAny
     )
     
     process {
@@ -92,9 +130,38 @@ function New-FleetPolicy {
         else {
             $body['platform'] = $Platform
         }
+
+        $automationOnGlobal = -not $PSBoundParameters.ContainsKey('FleetId') -and (
+            $PSBoundParameters.ContainsKey('CalendarEventsEnabled') -or
+            $PSBoundParameters.ContainsKey('SoftwareTitleId') -or
+            $PSBoundParameters.ContainsKey('ScriptId')
+        )
+        if ($automationOnGlobal) {
+            throw "CalendarEventsEnabled, SoftwareTitleId, and ScriptId are fleet policy automations and require -FleetId. https://fleetdm.com/docs/rest-api/rest-api#create-fleet-level-policy"
+        }
+
+        if ($PSBoundParameters.ContainsKey('Critical')) {
+            $body['critical'] = [bool]$Critical
+        }
+
+        if ($PSBoundParameters.ContainsKey('CalendarEventsEnabled')) {
+            $body['calendar_events_enabled'] = [bool]$CalendarEventsEnabled
+        }
+
+        if ($PSBoundParameters.ContainsKey('SoftwareTitleId')) {
+            $body['software_title_id'] = $SoftwareTitleId
+        }
+
+        if ($PSBoundParameters.ContainsKey('ScriptId')) {
+            $body['script_id'] = $ScriptId
+        }
+
+        if ($LabelIncludeAny) {
+            $body['labels_include_any'] = @($LabelIncludeAny)
+        }
         
-        $endpoint = "global/policies"
-        $targetDescription = "global policy '$Name'"
+        $endpoint = if ($PSBoundParameters.ContainsKey('FleetId')) { "fleets/$FleetId/policies" } else { "global/policies" }
+        $targetDescription = if ($PSBoundParameters.ContainsKey('FleetId')) { "fleet $FleetId policy '$Name'" } else { "global policy '$Name'" }
         
         Write-Verbose "Creating new policy: $Name"
         Write-Verbose "Platform: $Platform"

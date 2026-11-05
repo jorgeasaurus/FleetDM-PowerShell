@@ -58,14 +58,14 @@ BeforeAll {
     Mock Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell {
         param($Endpoint, $Method, $Body)
         
-        if ($Endpoint -eq "queries/run" -and $Method -eq "POST") {
+        if (($Endpoint -eq "queries/run" -or $Endpoint -eq "reports/run") -and $Method -eq "POST") {
             return [PSCustomObject]$script:MockCampaignResponse
         }
         elseif ($Endpoint -like "queries/run/*") {
             # Return results for campaign endpoint
             return [PSCustomObject]$script:MockQueryResults
         }
-        elseif ($Endpoint -eq "queries" -and $Method -eq "POST") {
+        elseif (($Endpoint -eq "queries" -or $Endpoint -eq "reports") -and $Method -eq "POST") {
             # Creating temporary query - the Body parameter comes as a hashtable from Invoke-FleetQuery
             $queryText = if ($Body -is [hashtable]) { $Body.query } else { $Body }
             return [PSCustomObject]@{
@@ -127,7 +127,7 @@ Describe "Invoke-FleetQuery" -Tags @('Unit', 'Queries') {
             
             # Should create a temporary query
             Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -ParameterFilter {
-                $Endpoint -eq "queries" -and $Method -eq "POST"
+                ($Endpoint -eq "queries" -or $Endpoint -eq "reports") -and $Method -eq "POST"
             }
         }
         
@@ -273,7 +273,7 @@ Describe "Invoke-FleetQuery" -Tags @('Unit', 'Queries') {
         It "Should handle missing campaign ID in response" {
             Mock Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell {
                 param($Endpoint, $Method)
-                if ($Endpoint -eq "queries" -and $Method -eq "POST") {
+                if (($Endpoint -eq "queries" -or $Endpoint -eq "reports") -and $Method -eq "POST") {
                     # Return a valid temp query response
                     return [PSCustomObject]@{
                         query = @{

@@ -141,7 +141,7 @@ Describe "Invoke-FleetDMRequest" -Tags @('Unit', 'Core') {
                 $result = Invoke-FleetDMRequest -Endpoint "hosts" -QueryParameters $queryParams
                 
                 Should -Invoke Invoke-RestMethod -Times 1 -ParameterFilter {
-                    $Uri -like "*query=test%20query*" -or $Uri -like "*query=test+query*"
+                    $Uri.OriginalString -like "*query=test%20query*" -or $Uri.OriginalString -like "*query=test+query*" -or $Uri.OriginalString -like "*query=test query*"
                 }
             }
         }

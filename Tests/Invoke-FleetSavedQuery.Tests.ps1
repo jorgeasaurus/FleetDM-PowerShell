@@ -107,7 +107,7 @@ Describe "Invoke-FleetSavedQuery" -Tags @('Unit', 'Queries') {
                 Mock Invoke-FleetDMRequest {
                     param($Endpoint, $Method, $Body)
                     
-                    if ($Endpoint -eq "queries/5/run" -and $Method -eq "POST") {
+                    if ($Endpoint -eq "reports/5/run" -and $Method -eq "POST") {
                         return [PSCustomObject]$MockData
                     }
                     throw "Unexpected endpoint: $Endpoint"
@@ -122,7 +122,7 @@ Describe "Invoke-FleetSavedQuery" -Tags @('Unit', 'Queries') {
                 $result.ResponseRate | Should -Be 100
                 
                 Should -Invoke Invoke-FleetDMRequest -Times 1 -ParameterFilter {
-                    $Endpoint -eq "queries/5/run" -and
+                    $Endpoint -eq "reports/5/run" -and
                     $Method -eq "POST" -and
                     $Body.host_ids -contains 1 -and
                     $Body.host_ids -contains 2
@@ -135,7 +135,7 @@ Describe "Invoke-FleetSavedQuery" -Tags @('Unit', 'Queries') {
                 Mock Invoke-FleetDMRequest {
                     param($Endpoint, $Method, $Body)
                     
-                    if ($Endpoint -eq "queries/5/run" -and $Method -eq "POST") {
+                    if ($Endpoint -eq "reports/5/run" -and $Method -eq "POST") {
                         return [PSCustomObject]@{
                             query_id = 5
                             targeted_host_count = 1
@@ -171,7 +171,7 @@ Describe "Invoke-FleetSavedQuery" -Tags @('Unit', 'Queries') {
                 Mock Invoke-FleetDMRequest {
                     param($Endpoint, $Method, $Body)
                     
-                    if ($Endpoint -like "queries/*/run" -and $Method -eq "POST") {
+                    if ($Endpoint -like "reports/*/run" -and $Method -eq "POST") {
                         return [PSCustomObject]$MockData
                     }
                     throw "Unexpected endpoint: $Endpoint"
@@ -197,7 +197,7 @@ Describe "Invoke-FleetSavedQuery" -Tags @('Unit', 'Queries') {
                 Mock Invoke-FleetDMRequest {
                     param($Endpoint, $Method, $Body)
                     
-                    if ($Endpoint -like "queries/*/run" -and $Method -eq "POST") {
+                    if ($Endpoint -like "reports/*/run" -and $Method -eq "POST") {
                         return [PSCustomObject]$MockData
                     }
                     throw "Unexpected endpoint: $Endpoint"
