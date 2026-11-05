@@ -1,19 +1,122 @@
-function Get-FleetRedactedLogText {
+function ConvertTo-FleetLogJson {
+    <#
+    .SYNOPSIS
+        Serializes a verbose-log value without a depth cutoff.
+
+    .DESCRIPTION
+        ConvertTo-Json stops at a fixed depth and turns the next PSCustomObject
+        into text such as @{password=secret}. Property redaction does not match
+        that text. Dictionaries, lists, and note properties are walked for the
+        log only. The HTTP body is serialized separately.
+    #>
+    [CmdletBinding()]
     param(
-        [string]$Text
+        [Parameter(Mandatory)]
+        [AllowNull()]
+        [object]$InputObject,
+
+        [AllowEmptyCollection()]
+        [System.Collections.Generic.List[object]]$Seen
     )
+
+    if ($null -eq $InputObject) {
+        return 'null'
+    }
+
+    # -InputObject avoids enumerating strings and hashtables into ConvertTo-Json.
+    if ($InputObject -is [string] -or $InputObject -is [ValueType]) {
+        return (ConvertTo-Json -InputObject $InputObject -Compress)
+    }
+
+    if ($null -eq $Seen) {
+        $Seen = [System.Collections.Generic.List[object]]::new()
+    }
+    else {
+        foreach ($item in @($Seen)) {
+            if ([object]::ReferenceEquals($item, $InputObject)) {
+                return '"[Circular]"'
+            }
+        }
+    }
+
+    $Seen.Add($InputObject) | Out-Null
+
+    if ($InputObject -is [System.Collections.IDictionary]) {
+        $pairs = foreach ($key in @($InputObject.Keys)) {
+            '{0}:{1}' -f (ConvertTo-Json -InputObject $key -Compress), (ConvertTo-FleetLogJson -InputObject $InputObject[$key] -Seen $Seen)
+        }
+        return '{' + ($pairs -join ',') + '}'
+    }
+
+    if ($InputObject -is [System.Collections.IList]) {
+        $items = foreach ($item in @($InputObject)) {
+            ConvertTo-FleetLogJson -InputObject $item -Seen $Seen
+        }
+        return '[' + ($items -join ',') + ']'
+    }
+
+    $noteProperties = @($InputObject.PSObject.Properties | Where-Object { $_.MemberType -eq 'NoteProperty' })
+    if ($noteProperties.Count -gt 0) {
+        $pairs = foreach ($property in $noteProperties) {
+            '{0}:{1}' -f (ConvertTo-Json -InputObject $property.Name -Compress), (ConvertTo-FleetLogJson -InputObject $property.Value -Seen $Seen)
+        }
+        return '{' + ($pairs -join ',') + '}'
+    }
+
+    try {
+        return (ConvertTo-Json -InputObject $InputObject -Compress -Depth 0 -WarningAction SilentlyContinue)
+    }
+    catch {
+        return (ConvertTo-Json -InputObject $InputObject.GetType().FullName -Compress)
+    }
+}
+
+function Get-FleetRedactedLogText {
+    <#
+    .SYNOPSIS
+        Redacts passwords, token fields, and bearer tokens in verbose text.
+
+    .DESCRIPTION
+        Transcripts and CI capture the verbose stream. Objects are serialized
+        without a depth cutoff, then secret fields are replaced. The request
+        itself still sends the original value.
+    #>
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [object]$Text
+    )
+
+    if ($null -eq $Text) {
+        return $null
+    }
+
+    if ($Text -isnot [string]) {
+        $Text = ConvertTo-FleetLogJson -InputObject $Text
+    }
 
     if ([string]::IsNullOrEmpty($Text)) {
         return $Text
     }
 
-    # Transcripts and CI capture the verbose stream. The request itself still sends the original value.
     $redacted = [regex]::Replace(
         $Text,
-        '(?i)("(?:password|current_password|new_password|token|api_token|secret|authorization)"\s*:\s*")((?:\\.|[^"\\])*)(")',
+        '(?i)("(?:current_password|new_password|api_token|authorization|password|token|secret)"\s*:\s*")((?:\\.|[^"\\])*)(")',
         '${1}[REDACTED]${3}'
     )
-    return [regex]::Replace($redacted, '(?i)\bBearer\s+\S+', 'Bearer [REDACTED]')
+    # Windows PowerShell 5.1 enumerates a piped hashtable as Key/Value entries.
+    $redacted = [regex]::Replace(
+        $redacted,
+        '(?i)("Key"\s*:\s*"(?:current_password|new_password|api_token|authorization|password|token|secret)"\s*,\s*"Value"\s*:\s*")((?:\\.|[^"\\])*)(")',
+        '${1}[REDACTED]${3}'
+    )
+    # Depth-limited ConvertTo-Json leaves @{password=secret} fragments.
+    $redacted = [regex]::Replace(
+        $redacted,
+        '(?i)(^|[{;,\s])((?:current_password|new_password|api_token|authorization|password|token|secret)\s*=\s*)([^;}\r\n]+)',
+        '${1}${2}[REDACTED]'
+    )
+    return [regex]::Replace($redacted, '(?i)\bBearer\s+[^\s"\\}]+', 'Bearer [REDACTED]')
 }
 
 function Invoke-FleetDMRequest {
@@ -72,7 +175,7 @@ function Invoke-FleetDMRequest {
     }
     
     process {
-        Write-Verbose "Using headers: $(Get-FleetRedactedLogText -Text ($script:FleetDMConnection.Headers | ConvertTo-Json -Compress))"
+        Write-Verbose "Using headers: $(Get-FleetRedactedLogText -Text $script:FleetDMConnection.Headers)"
         # Add query parameters if provided
         if ($QueryParameters -and $QueryParameters.Count -gt 0) {
             $queryString = ConvertTo-FleetQueryString -QueryParameters $QueryParameters
@@ -93,12 +196,13 @@ function Invoke-FleetDMRequest {
             WebSession = $script:FleetDMWebSession
             ErrorAction = 'Stop'
         }
-        Write-Verbose "Request parameters: $(Get-FleetRedactedLogText -Text ($requestParams | ConvertTo-Json -Compress))"
-        # Add body if provided
+        Write-Verbose "Request parameters: $(Get-FleetRedactedLogText -Text $requestParams)"
+        # Add body if provided. The wire body stays depth-limited JSON.
+        # The verbose line redacts a separate serialization of the original object.
         if ($Body -and $Body.Count -gt 0) {
             $jsonBody = ConvertTo-FleetJson -InputObject $Body -Depth 10
             $requestParams['Body'] = $jsonBody
-            Write-Verbose "Request body: $(Get-FleetRedactedLogText -Text $jsonBody)"
+            Write-Verbose "Request body: $(Get-FleetRedactedLogText -Text $Body)"
         }
         Write-Verbose "Sending request to FleetDM API"
         try {

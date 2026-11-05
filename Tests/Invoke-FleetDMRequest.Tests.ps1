@@ -484,5 +484,125 @@ Describe "Invoke-FleetDMRequest" -Tags @('Unit', 'Core') {
                 }
             }
         }
+
+        It "Should redact secrets nested deeper than ConvertTo-Json depth 10" {
+            InModuleScope FleetDM-PowerShell {
+                Mock Invoke-RestMethod {
+                    return [PSCustomObject]@{ user = @{ id = 1 } }
+                }
+
+                $node = [pscustomobject]@{
+                    label         = 'keep-visible'
+                    password      = 'REDACT-TEST-PASSWORD'
+                    token         = 'gg_test_not_a_real_secret'
+                    authorization = 'Bearer gg_test_not_a_real_bearer'
+                }
+                for ($i = 0; $i -lt 11; $i++) {
+                    $node = [pscustomobject]@{ child = $node }
+                }
+
+                $script:FleetDMConnection.Headers = @{
+                    'Authorization' = 'Bearer test-token'
+                    'X-Nested'      = $node
+                }
+
+                $body = @{
+                    name    = 'module-test'
+                    email   = 'api@example.com'
+                    profile = $node
+                }
+
+                $records = @(
+                    Invoke-FleetDMRequest -Endpoint 'users/admin' -Method POST -Body $body -Verbose 4>&1
+                )
+
+                $log = @(
+                    $records |
+                        Where-Object { $_ -is [System.Management.Automation.VerboseRecord] } |
+                        ForEach-Object { $_.Message }
+                ) -join "`n"
+
+                $log | Should -Match 'keep-visible'
+                $log | Should -Match 'api@example.com'
+                $log | Should -Match '\[REDACTED\]'
+                $log | Should -Not -Match 'REDACT-TEST-PASSWORD'
+                $log | Should -Not -Match 'gg_test_not_a_real_secret'
+                $log | Should -Not -Match 'gg_test_not_a_real_bearer'
+                $log | Should -Not -Match 'test-token'
+
+                Should -Invoke Invoke-RestMethod -Times 1 -ParameterFilter {
+                    $Body -match 'REDACT-TEST-PASSWORD' -and
+                    $Body -match 'gg_test_not_a_real_secret' -and
+                    $Body -match 'gg_test_not_a_real_bearer' -and
+                    $Body -notmatch '\[REDACTED\]' -and
+                    $Headers['Authorization'] -eq 'Bearer test-token' -and
+                    $Headers['X-Nested'].child.child.child.child.child.child.child.child.child.child.child.password -eq 'REDACT-TEST-PASSWORD'
+                }
+            }
+        }
+
+        It "Should redact secrets nested past the ConvertTo-Json maximum depth" {
+            InModuleScope FleetDM-PowerShell {
+                Mock Invoke-RestMethod {
+                    return [PSCustomObject]@{ user = @{ id = 1 } }
+                }
+
+                $node = [pscustomobject]@{
+                    label         = 'keep-visible-deep'
+                    password      = 'REDACT-TEST-PASSWORD-DEEP'
+                    token         = 'gg_test_not_a_real_secret_deep'
+                    authorization = 'Bearer gg_test_not_a_real_bearer_deep'
+                }
+                for ($i = 0; $i -lt 101; $i++) {
+                    $node = [pscustomobject]@{ child = $node }
+                }
+
+                $body = @{ profile = $node }
+                $expectedBody = ConvertTo-FleetJson -InputObject $body -Depth 10
+
+                $records = @(
+                    Invoke-FleetDMRequest -Endpoint 'users/admin' -Method POST -Body $body -Verbose 4>&1
+                )
+
+                $log = @(
+                    $records |
+                        Where-Object { $_ -is [System.Management.Automation.VerboseRecord] } |
+                        ForEach-Object { $_.Message }
+                ) -join "`n"
+
+                $log | Should -Match 'keep-visible-deep'
+                $log | Should -Match '\[REDACTED\]'
+                $log | Should -Not -Match 'REDACT-TEST-PASSWORD-DEEP'
+                $log | Should -Not -Match 'gg_test_not_a_real_secret_deep'
+                $log | Should -Not -Match 'gg_test_not_a_real_bearer_deep'
+                $expectedBody | Should -Not -Match 'keep-visible-deep'
+                $expectedBody | Should -Not -Match '\[REDACTED\]'
+
+                Should -Invoke Invoke-RestMethod -Times 1 -ParameterFilter {
+                    $Body -eq $expectedBody -and
+                    $Headers['Authorization'] -eq 'Bearer test-token'
+                }
+            }
+        }
+
+        It "Should redact stringified secrets and Windows PowerShell 5.1 Key/Value JSON" {
+            InModuleScope FleetDM-PowerShell {
+                $literal = 'prefix @{password=REDACT-TEST-PASSWORD; token=gg_test_not_a_real_secret; authorization=Bearer gg_test_not_a_real_bearer} suffix'
+                $redactedLiteral = Get-FleetRedactedLogText -Text $literal
+                $redactedLiteral | Should -Match 'prefix'
+                $redactedLiteral | Should -Match 'suffix'
+                $redactedLiteral | Should -Not -Match 'REDACT-TEST-PASSWORD'
+                $redactedLiteral | Should -Not -Match 'gg_test_not_a_real_secret'
+                $redactedLiteral | Should -Not -Match 'gg_test_not_a_real_bearer'
+
+                $entryJson = '[{"Key":"name","Value":"ok"},{"Key":"password","Value":"REDACT-TEST-PASSWORD"},{"Key":"token","Value":"gg_test_not_a_real_secret"},{"Key":"Authorization","Value":"Bearer gg_test_not_a_real_bearer"}]'
+                $redactedEntries = Get-FleetRedactedLogText -Text $entryJson
+                $redactedEntries | Should -Match 'ok'
+                $redactedEntries | Should -Match '\[REDACTED\]'
+                $redactedEntries | Should -Not -Match 'REDACT-TEST-PASSWORD'
+                $redactedEntries | Should -Not -Match 'gg_test_not_a_real_secret'
+                $redactedEntries | Should -Not -Match 'gg_test_not_a_real_bearer'
+            }
+        }
     }
 }
