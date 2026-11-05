@@ -446,4 +446,43 @@ Describe "Invoke-FleetDMRequest" -Tags @('Unit', 'Core') {
             }
         }
     }
+
+    Context "Secret redaction" {
+        It "Should keep passwords and bearer tokens out of the verbose stream" {
+            InModuleScope FleetDM-PowerShell {
+                Mock Invoke-RestMethod {
+                    return [PSCustomObject]@{ user = @{ id = 1 } }
+                }
+
+                $records = @(
+                    Invoke-FleetDMRequest -Endpoint 'users/admin' -Method POST -Body @{
+                        name = 'module-test'
+                        email = 'api@example.com'
+                        password = 'ex"ample-password'
+                        token = 'api-token-value'
+                    } -Verbose 4>&1
+                )
+
+                $log = @(
+                    $records |
+                        Where-Object { $_ -is [System.Management.Automation.VerboseRecord] } |
+                        ForEach-Object { $_.Message }
+                ) -join "`n"
+
+                $log | Should -Not -BeNullOrEmpty
+                $log | Should -Match 'api@example.com'
+                $log | Should -Match '\[REDACTED\]'
+                $log | Should -Not -Match 'ex\\"ample-password'
+                $log | Should -Not -Match 'ample-password'
+                $log | Should -Not -Match 'api-token-value'
+                $log | Should -Not -Match 'test-token'
+
+                Should -Invoke Invoke-RestMethod -Times 1 -ParameterFilter {
+                    $Body -match 'ex\\"ample-password' -and
+                    $Body -match 'api-token-value' -and
+                    $Headers['Authorization'] -eq 'Bearer test-token'
+                }
+            }
+        }
+    }
 }

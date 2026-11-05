@@ -442,5 +442,20 @@ Describe "Invoke-FleetDMMethod Tests" {
             $verboseMessages = $verboseOutput | ForEach-Object { $_.ToString() }
             $verboseMessages -join ' ' | Should -BeLike "*Invoking FleetDM method*"
         }
+
+        It "Should omit passwords from verbose output" {
+            $verboseOutput = Invoke-FleetDMMethod -Endpoint "queries" -Method POST -Body @{
+                name = 'module-test'
+                password = 'ex"ample-password'
+            } -Verbose 4>&1 | Where-Object { $_ -is [System.Management.Automation.VerboseRecord] }
+
+            $log = $verboseOutput | ForEach-Object { $_.ToString() } | Out-String
+            $log | Should -Not -Match 'ample-password'
+            $log | Should -Match '\[REDACTED\]'
+
+            Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -Times 1 -ParameterFilter {
+                $Body.password -eq 'ex"ample-password'
+            }
+        }
     }
 }

@@ -1,3 +1,21 @@
+function Get-FleetRedactedLogText {
+    param(
+        [string]$Text
+    )
+
+    if ([string]::IsNullOrEmpty($Text)) {
+        return $Text
+    }
+
+    # Transcripts and CI capture the verbose stream. The request itself still sends the original value.
+    $redacted = [regex]::Replace(
+        $Text,
+        '(?i)("(?:password|current_password|new_password|token|api_token|secret|authorization)"\s*:\s*")((?:\\.|[^"\\])*)(")',
+        '${1}[REDACTED]${3}'
+    )
+    return [regex]::Replace($redacted, '(?i)\bBearer\s+\S+', 'Bearer [REDACTED]')
+}
+
 function Invoke-FleetDMRequest {
     <#
     .SYNOPSIS
@@ -54,7 +72,7 @@ function Invoke-FleetDMRequest {
     }
     
     process {
-        Write-Verbose "Using headers: $($script:FleetDMConnection.Headers | ConvertTo-Json -Compress)"
+        Write-Verbose "Using headers: $(Get-FleetRedactedLogText -Text ($script:FleetDMConnection.Headers | ConvertTo-Json -Compress))"
         # Add query parameters if provided
         if ($QueryParameters -and $QueryParameters.Count -gt 0) {
             $queryString = ConvertTo-FleetQueryString -QueryParameters $QueryParameters
@@ -75,12 +93,12 @@ function Invoke-FleetDMRequest {
             WebSession = $script:FleetDMWebSession
             ErrorAction = 'Stop'
         }
-        Write-Verbose "Request parameters: $($requestParams | ConvertTo-Json -Compress)"
+        Write-Verbose "Request parameters: $(Get-FleetRedactedLogText -Text ($requestParams | ConvertTo-Json -Compress))"
         # Add body if provided
         if ($Body -and $Body.Count -gt 0) {
             $jsonBody = ConvertTo-FleetJson -InputObject $Body -Depth 10
             $requestParams['Body'] = $jsonBody
-            Write-Verbose "Request body: $jsonBody"
+            Write-Verbose "Request body: $(Get-FleetRedactedLogText -Text $jsonBody)"
         }
         Write-Verbose "Sending request to FleetDM API"
         try {

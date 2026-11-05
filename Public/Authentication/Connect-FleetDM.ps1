@@ -137,7 +137,7 @@ function Connect-FleetDM {
             $versionUri = "$BaseUri/api/v1/fleet/version"
             
             Write-Verbose "Testing connection to: $versionUri"
-            Write-Verbose "Headers: $($headers | ConvertTo-Json -Compress)"
+            Write-Verbose "Headers: $(Get-FleetRedactedLogText -Text ($headers | ConvertTo-Json -Compress))"
             
             try {
                 $webResponse = Invoke-WebRequest -Uri $versionUri `

@@ -97,7 +97,7 @@ function Invoke-FleetDMMethod {
         
         if ($Body) {
             $requestParams['Body'] = $Body
-            Write-Verbose "Request body: $($Body | ConvertTo-Json -Compress)"
+            Write-Verbose "Request body: $(Get-FleetRedactedLogText -Text ($Body | ConvertTo-Json -Compress))"
         }
         
         if ($QueryParameters) {
