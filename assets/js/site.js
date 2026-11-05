@@ -38,14 +38,13 @@
   });
 
   var navToggle = document.getElementById("nav-toggle");
-  if (navToggle && window.matchMedia) {
-    var navQuery = window.matchMedia("(max-width: 860px)");
-    var syncNavToggle = function () {
-      navToggle.tabIndex = navQuery.matches ? 0 : -1;
-    };
-    syncNavToggle();
-    if (navQuery.addEventListener) navQuery.addEventListener("change", syncNavToggle);
-    else if (navQuery.addListener) navQuery.addListener(syncNavToggle);
+  var docsNav = document.getElementById("docs-nav");
+  if (navToggle && docsNav) {
+    navToggle.addEventListener("click", function () {
+      var open = navToggle.getAttribute("aria-expanded") === "true";
+      navToggle.setAttribute("aria-expanded", open ? "false" : "true");
+      docsNav.classList.toggle("is-open", !open);
+    });
   }
 
   document.querySelectorAll(".content pre").forEach(function (pre) {

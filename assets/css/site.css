@@ -143,23 +143,6 @@ a { color: var(--link); }
   padding: 1.4rem 0 3rem;
 }
 
-.nav-toggle {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-}
-
-.nav-toggle:focus-visible {
-  outline: none;
-}
-
-.nav-toggle:focus-visible + .nav-button {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
-}
-
 .nav-button { display: none; }
 
 .sidebar {
@@ -488,7 +471,7 @@ a { color: var(--link); }
   .shell { grid-template-columns: 1fr; width: min(46rem, calc(100% - 1.5rem)); }
   .nav-button { display: inline-flex; margin-bottom: 0.6rem; }
   .sidebar { display: none; position: static; max-height: none; }
-  .nav-toggle:checked ~ .sidebar {
+  .sidebar.is-open {
     display: block;
     margin-bottom: 1rem;
     padding: 0.6rem 0.2rem 0.8rem;

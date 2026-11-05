@@ -1,6 +1,6 @@
 {% assign here = page.url | default: "/" %}
 {% if here == "/index.html" %}{% assign here = "/" %}{% endif %}
-<nav class="sidebar" aria-label="Documentation">
+<nav id="docs-nav" class="sidebar" aria-label="Documentation">
   <div class="nav-filter">
     <label for="cmdlet-filter">Find a page</label>
     <input id="cmdlet-filter" type="search" placeholder="Filter" autocomplete="off">

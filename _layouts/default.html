@@ -47,8 +47,7 @@
   </header>
 
   <div class="shell">
-    <input id="nav-toggle" class="nav-toggle" type="checkbox">
-    <label class="nav-button" for="nav-toggle">Browse the docs</label>
+    <button type="button" class="nav-button" id="nav-toggle" aria-expanded="false" aria-controls="docs-nav">Browse the docs</button>
     {% include sidebar.html %}
     <main id="content" class="content">
       {% if page.path contains "docs/en-US/" %}

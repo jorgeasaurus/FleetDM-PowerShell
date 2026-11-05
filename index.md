@@ -20,7 +20,7 @@ title: FleetDM-PowerShell
 </div>
 <div class="callout" markdown="1">
 
-**Verbose logs.** `-Verbose` redacts `password`, token fields, and `Authorization` bearer values at any nesting depth, including arrays, objects, and secret query parameters. `New-FleetUser` still sends the password to Fleet. Transcripts and CI logs receive the redacted text. The HTTP URI is unchanged.
+**Verbose logs.** `-Verbose` redacts `password`, token fields, and `Authorization` bearer values at any nesting depth, including arrays, objects, and secret query parameters. `New-FleetUser` still sends the password to Fleet. Transcripts and CI logs receive the redacted text. Redaction does not change the request URI sent to Fleet. Do not put a secret in `Invoke-FleetDMMethod -Endpoint`: that cmdlet writes the endpoint string to the verbose log before redaction.
 
 </div>
 </div>
@@ -91,7 +91,7 @@ Connect-FleetDM -BaseUri "https://fleet.example.com" -Credential $cred
 
 ### Verbose logs {#redaction}
 
-`-Verbose` on `Connect-FleetDM` and later API calls writes request details. Those lines redact `password`, token fields, and `Authorization` bearer values at any nesting depth, including array and object values and secret query parameters. `New-FleetUser` still sends the password to Fleet. `-Verbose`, transcripts, and CI logs do not receive it. The HTTP URI is unchanged.
+`-Verbose` on `Connect-FleetDM` and later API calls writes request details. Those lines redact `password`, token fields, and `Authorization` bearer values at any nesting depth, including array and object values and secret query parameters. `New-FleetUser` still sends the password to Fleet. `-Verbose`, transcripts, and CI logs do not receive it. Redaction does not change the request URI sent to Fleet. Do not put a secret in `Invoke-FleetDMMethod -Endpoint`: that cmdlet writes the endpoint string to the verbose log before redaction.
 
 ```powershell
 Connect-FleetDM -BaseUri "https://fleet.example.com" -ApiToken $token -Verbose

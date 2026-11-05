@@ -36,12 +36,12 @@ jobs:
           destination: ./_site
           
       - name: Upload artifact
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v3
 
-  # Deployment job
+  # Deployment job. Manual runs on other branches stay build-only.
   deploy:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

@@ -310,7 +310,7 @@ $apiUser = New-FleetUser -Name "module-test" -Email "api@example.com" -Password 
 3. **Create API-only users** for automation (requires admin access)
 4. **Rotate tokens regularly**
 5. **Use least-privilege principles** for API users
-6. **Verbose logs are redacted.** `-Verbose`, transcripts, and CI logs redact `password`, token fields, and `Authorization` bearer values at any nesting depth. `New-FleetUser` still sends the password to Fleet. The HTTP URI is unchanged.
+6. **Verbose logs are redacted.** `-Verbose`, transcripts, and CI logs redact `password`, token fields, and `Authorization` bearer values at any nesting depth. `New-FleetUser` still sends the password to Fleet. Redaction does not change the request URI sent to Fleet. Do not put a secret in `Invoke-FleetDMMethod -Endpoint`: that cmdlet writes the endpoint string to the verbose log before redaction.
 
 ## Development
 
