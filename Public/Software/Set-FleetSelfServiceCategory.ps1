@@ -37,12 +37,7 @@ function Set-FleetSelfServiceCategory {
     process {
         if ($PSCmdlet.ShouldProcess("self-service category $Id", "Rename to $Name")) {
             $response = Invoke-FleetDMRequest -Endpoint "software/self_service_categories/$Id" -Method PATCH -Body @{ name = $Name }
-            $category = $response.self_service_category
-            if (-not $category) { $category = $response }
-            if ($category -and $category.PSObject) {
-                $category.PSObject.TypeNames.Insert(0, 'FleetDM.SelfServiceCategory')
-            }
-            return $category
+            return (Get-FleetResponseRecord -Response $response -Name 'self_service_category' -TypeName 'FleetDM.SelfServiceCategory')
         }
     }
 }

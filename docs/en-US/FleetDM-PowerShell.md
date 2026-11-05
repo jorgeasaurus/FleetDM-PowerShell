@@ -12,9 +12,6 @@ Lightweight PowerShell module for FleetDM Free Tier API integration. Provides cm
 
 ## FleetDM-PowerShell Cmdlets
 
-### [ConvertFrom-JamfXmlToFleetYaml](ConvertFrom-JamfXmlToFleetYaml.md)
-Converts Jamf Pro exported XML files into FleetDM GitOps-compatible files
-
 ### [Connect-FleetDM](Connect-FleetDM.md)
 Establishes a connection to the FleetDM API
 

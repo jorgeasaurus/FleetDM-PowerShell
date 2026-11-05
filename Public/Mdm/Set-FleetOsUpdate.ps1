@@ -83,8 +83,7 @@ function Set-FleetOsUpdate {
         }
 
         $current = Invoke-FleetDMRequest -Endpoint "fleets/$FleetId" -Method GET
-        $fleetRecord = $current.team
-        if (-not $fleetRecord) { $fleetRecord = $current.fleet }
+        $fleetRecord = Get-FleetRecord -Response $current
         $currentMdm = $null
         if ($fleetRecord) {
             $currentMdm = $fleetRecord.mdm
@@ -153,12 +152,7 @@ function Set-FleetOsUpdate {
 
         if ($PSCmdlet.ShouldProcess("fleet $FleetId", 'Set OS update enforcement')) {
             $response = Invoke-FleetDMRequest -Endpoint "fleets/$FleetId" -Method PATCH -Body @{ mdm = $mdm }
-            $fleet = $response.team
-            if (-not $fleet) { $fleet = $response.fleet }
-            if ($fleet -and $fleet.PSObject) {
-                $fleet.PSObject.TypeNames.Insert(0, 'FleetDM.Team')
-            }
-            return $fleet
+            return (Get-FleetRecord -Response $response)
         }
     }
 }

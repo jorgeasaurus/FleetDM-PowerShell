@@ -13,6 +13,7 @@
     FunctionsToExport = @(
         'Connect-FleetDM',
         'Disconnect-FleetDM',
+        'New-FleetUser',
         'Get-FleetHost',
         'Remove-FleetHost',
         'Get-FleetQuery',
@@ -23,7 +24,6 @@
         'Set-FleetPolicy',
         'Get-FleetSoftware',
         'Invoke-FleetDMMethod',
-        'ConvertFrom-JamfXmlToFleetYaml',
         'Get-FleetTeam',
         'New-FleetTeam',
         'Set-FleetTeam',
@@ -68,7 +68,7 @@
             LicenseUri = 'https://github.com/Jorgeasaurus/FleetDM-PowerShell/blob/main/LICENSE'
             ProjectUri = 'https://github.com/Jorgeasaurus/FleetDM-PowerShell'
             IconUri = ''
-            ReleaseNotes = 'Version 2.2.0 - Fixes pagination, query routing, host filters, and Premium license errors. Adds Fleet Premium cmdlets for fleets, software install, self-service, scripts, MDM, host wipe, OS updates, policy automations, calendar, and SSO JIT provisioning.'
+            ReleaseNotes = 'Version 2.2.0 - Fixes pagination, query routing, host filters, and Premium license errors. Adds Fleet Premium cmdlets for fleets, software install, self-service, scripts, MDM, host wipe, OS updates, policy automations, calendar, and SSO JIT provisioning. Adds email login and New-FleetUser.'
             Prerelease = ''
             RequireLicenseAcceptance = $false
             ExternalModuleDependencies = @()

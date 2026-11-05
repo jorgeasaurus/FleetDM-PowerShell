@@ -38,19 +38,10 @@ function Uninstall-FleetSoftware {
         $target = "software title $SoftwareTitleId on host $HostId"
         if ($PSCmdlet.ShouldProcess($target, 'Uninstall')) {
             $response = Invoke-FleetDMRequest -Endpoint "hosts/$HostId/software/$SoftwareTitleId/uninstall" -Method POST
-            if ($response) {
-                if ($response.PSObject) {
-                    $response.PSObject.TypeNames.Insert(0, 'FleetDM.SoftwareUninstall')
-                }
-                return $response
+            if ($response -and $response.PSObject) {
+                $response.PSObject.TypeNames.Insert(0, 'FleetDM.SoftwareUninstall')
             }
-
-            [PSCustomObject]@{
-                PSTypeName = 'FleetDM.SoftwareUninstall'
-                HostId = $HostId
-                SoftwareTitleId = $SoftwareTitleId
-                Status = 'accepted'
-            }
+            return $response
         }
     }
 }

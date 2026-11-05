@@ -29,12 +29,7 @@ function New-FleetTeam {
     process {
         if ($PSCmdlet.ShouldProcess($Name, 'Create Fleet')) {
             $response = Invoke-FleetDMRequest -Endpoint 'fleets' -Method POST -Body @{ name = $Name }
-            $fleet = $response.team
-            if (-not $fleet) { $fleet = $response.fleet }
-            if ($fleet -and $fleet.PSObject) {
-                $fleet.PSObject.TypeNames.Insert(0, 'FleetDM.Team')
-            }
-            return $fleet
+            return (Get-FleetRecord -Response $response)
         }
     }
 }

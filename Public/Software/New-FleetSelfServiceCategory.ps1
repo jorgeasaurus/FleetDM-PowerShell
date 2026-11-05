@@ -42,12 +42,7 @@ function New-FleetSelfServiceCategory {
                 fleet_id = $FleetId
                 name = $Name
             }
-            $category = $response.self_service_category
-            if (-not $category) { $category = $response }
-            if ($category -and $category.PSObject) {
-                $category.PSObject.TypeNames.Insert(0, 'FleetDM.SelfServiceCategory')
-            }
-            return $category
+            return (Get-FleetResponseRecord -Response $response -Name 'self_service_category' -TypeName 'FleetDM.SelfServiceCategory')
         }
     }
 }

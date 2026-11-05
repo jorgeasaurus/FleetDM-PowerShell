@@ -57,13 +57,11 @@ function Get-FleetTeam {
     process {
         if ($PSCmdlet.ParameterSetName -eq 'ById') {
             $response = Invoke-FleetDMRequest -Endpoint "fleets/$Id" -Method GET
-            $fleet = $response.team
-            if (-not $fleet) { $fleet = $response.fleet }
+            $fleet = Get-FleetRecord -Response $response
             if (-not $fleet) {
                 Write-Warning "No fleet data returned for ID: $Id"
                 return
             }
-            $fleet.PSObject.TypeNames.Insert(0, 'FleetDM.Team')
             return $fleet
         }
 
@@ -80,23 +78,9 @@ function Get-FleetTeam {
             $response = Invoke-FleetDMRequest -Endpoint 'fleets' -QueryParameters $queryParams
         }
 
-        $result = $response
-        if ($null -ne $response.fleets) {
-            $result = $response.fleets
-        }
-        elseif ($null -ne $response.teams) {
-            $result = $response.teams
-        }
-
-        $result = @($result | Where-Object { $_ })
+        $result = Get-FleetListResult -Response $response -Name 'fleets' -TypeName 'FleetDM.Team'
         if ($Name) {
             $result = @($result | Where-Object { $_.name -like "*$Name*" })
-        }
-
-        foreach ($fleet in $result) {
-            if ($fleet.PSObject) {
-                $fleet.PSObject.TypeNames.Insert(0, 'FleetDM.Team')
-            }
         }
 
         return $result

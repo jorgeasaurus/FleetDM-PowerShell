@@ -197,12 +197,7 @@ function Get-FleetHost {
 
             Write-Verbose "Retrieving host with ID: $Id"
 
-            if ($hostQuery.Count -gt 0) {
-                $result = Invoke-FleetDMRequest -Endpoint $endpoint -Method GET -QueryParameters $hostQuery
-            }
-            else {
-                $result = Invoke-FleetDMRequest -Endpoint $endpoint -Method GET
-            }
+            $result = Invoke-FleetDMRequest -Endpoint $endpoint -Method GET -QueryParameters $hostQuery
             
             # Add custom type for formatting
             if ($result.host) {

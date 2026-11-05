@@ -44,10 +44,7 @@ function Reset-FleetPolicyAutomation {
             $fleetPolicyIds = New-Object System.Collections.Generic.List[int]
             foreach ($fleet in $FleetId) {
                 $listed = Invoke-FleetDMRequest -Endpoint "fleets/$fleet/policies" -QueryParameters @{ per_page = 100 } -FollowPagination
-                if ($listed -and $listed.PSObject.Properties.Name -contains 'policies') {
-                    $listed = $listed.policies
-                }
-                foreach ($policy in @($listed)) {
+                foreach ($policy in @(Get-FleetListResult -Response $listed -Name 'policies' -TypeName 'FleetDM.Policy')) {
                     if ($null -ne $policy.id) {
                         $fleetPolicyIds.Add([int]$policy.id)
                     }
@@ -58,7 +55,6 @@ function Reset-FleetPolicyAutomation {
             if ($missing.Count -gt 0) {
                 throw "Policy IDs $($missing -join ', ') are not on the specified fleets. fleet_ids is not sent, because Fleet would also reset every other policy on those fleets."
             }
-            $selectedIds = @($PolicyId)
         }
 
         $body = @{ policy_ids = $selectedIds }

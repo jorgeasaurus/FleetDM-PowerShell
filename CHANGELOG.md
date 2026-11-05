@@ -24,6 +24,8 @@
 
 Fleet Premium cmdlets. Each one documents the Premium requirement and turns HTTP 402 into a license error.
 
+- `Connect-FleetDM -Email` and `-Password` log in with the same values as `fleetctl login --email --password`.
+- `New-FleetUser` creates a user with `POST /users/admin`, including `-ApiOnly` and `-GlobalRole`. An API-only response includes `Token`.
 - Fleets: `Get-FleetTeam`, `New-FleetTeam`, `Set-FleetTeam`, `Remove-FleetTeam`
 - Software install: `Install-FleetSoftware`, `Uninstall-FleetSoftware`, `Get-FleetSoftwareInstall`, `Remove-FleetSoftwarePackage`
 - Self-service categories: `Get-FleetSelfServiceCategory`, `New-FleetSelfServiceCategory`, `Set-FleetSelfServiceCategory`, `Remove-FleetSelfServiceCategory`
@@ -34,10 +36,6 @@ Fleet Premium cmdlets. Each one documents the Premium requirement and turns HTTP
 - Calendar maintenance windows: `Set-FleetCalendarEvent`
 - Policy automations: fleet policies via `-FleetId`, `-Critical`, `-CalendarEventsEnabled`, `-SoftwareTitleId`, and `-ScriptId` on `New-FleetPolicy` and `Set-FleetPolicy`; `Get-FleetPolicyAutomation`; `Reset-FleetPolicyAutomation`
 - SSO JIT provisioning: `Set-FleetJitProvisioning`
-
-## 2.1.0
-
-- Added `ConvertFrom-JamfXmlToFleetYaml` for Jamf Pro exports.
 
 ## 1.0.0
 

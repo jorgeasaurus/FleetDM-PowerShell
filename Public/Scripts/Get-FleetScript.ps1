@@ -55,12 +55,7 @@ function Get-FleetScript {
     process {
         if ($PSCmdlet.ParameterSetName -eq 'ById') {
             $response = Invoke-FleetDMRequest -Endpoint "scripts/$Id" -Method GET
-            $script = $response.script
-            if (-not $script) { $script = $response }
-            if ($script -and $script.PSObject) {
-                $script.PSObject.TypeNames.Insert(0, 'FleetDM.Script')
-            }
-            return $script
+            return (Get-FleetResponseRecord -Response $response -Name 'script' -TypeName 'FleetDM.Script')
         }
 
         $queryParams = @{ per_page = $PerPage }
@@ -75,16 +70,6 @@ function Get-FleetScript {
             $response = Invoke-FleetDMRequest -Endpoint 'scripts' -QueryParameters $queryParams
         }
 
-        $result = $response
-        if ($null -ne $response.scripts) {
-            $result = $response.scripts
-        }
-        $result = @($result | Where-Object { $_ })
-        foreach ($script in $result) {
-            if ($script.PSObject) {
-                $script.PSObject.TypeNames.Insert(0, 'FleetDM.Script')
-            }
-        }
-        return $result
+        return (Get-FleetListResult -Response $response -Name 'scripts' -TypeName 'FleetDM.Script')
     }
 }

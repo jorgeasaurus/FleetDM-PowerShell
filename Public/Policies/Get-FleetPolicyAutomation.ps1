@@ -68,16 +68,6 @@ function Get-FleetPolicyAutomation {
             $response = Invoke-FleetDMRequest -Endpoint $endpoint -QueryParameters $queryParams
         }
 
-        $result = $response
-        if ($null -ne $response.activities) {
-            $result = $response.activities
-        }
-        $result = @($result | Where-Object { $_ })
-        foreach ($activity in $result) {
-            if ($activity.PSObject) {
-                $activity.PSObject.TypeNames.Insert(0, 'FleetDM.PolicyAutomationActivity')
-            }
-        }
-        return $result
+        return (Get-FleetListResult -Response $response -Name 'activities' -TypeName 'FleetDM.PolicyAutomationActivity')
     }
 }

@@ -90,7 +90,7 @@ Describe 'Fleet Premium cmdlets' -Tag 'Unit' {
 
     It 'installs software and reads the install result' {
         $queued = Install-FleetSoftware -HostId 5 -SoftwareTitleId 9 -Confirm:$false
-        $queued.Status | Should -Be 'accepted'
+        $queued | Should -BeNullOrEmpty
         $result = Get-FleetSoftwareInstall -InstallUuid 'abc'
         $result.status | Should -Be 'installed'
         Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -ParameterFilter {

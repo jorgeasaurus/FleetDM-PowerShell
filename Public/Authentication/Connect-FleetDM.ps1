@@ -17,12 +17,24 @@ function Connect-FleetDM {
     .PARAMETER Credential
         PSCredential object containing email and password for FleetDM authentication.
         Use this for interactive sessions or when token authentication is not available.
+
+    .PARAMETER Email
+        Fleet user email. Same value as fleetctl login --email.
+
+    .PARAMETER Password
+        Fleet user password. Same value as fleetctl login --password.
     
     .EXAMPLE
         $token = ConvertTo-SecureString "your-api-token" -AsPlainText -Force
         Connect-FleetDM -BaseUri "https://fleet.example.com" -ApiToken $token
         
         Connects to FleetDM using an API token
+
+    .EXAMPLE
+        $password = Read-Host "Password" -AsSecureString
+        Connect-FleetDM -BaseUri "https://fleet.example.com" -Email "admin@example.com" -Password $password
+
+        Logs in with email and password, the same call as fleetctl login --email --password
     
     .EXAMPLE
         $cred = Get-Credential
@@ -49,7 +61,14 @@ function Connect-FleetDM {
         [securestring]$ApiToken,
         
         [Parameter(Mandatory, ParameterSetName = 'Credential')]
-        [pscredential]$Credential
+        [pscredential]$Credential,
+
+        [Parameter(Mandatory, ParameterSetName = 'Email')]
+        [ValidateNotNullOrEmpty()]
+        [string]$Email,
+
+        [Parameter(Mandatory, ParameterSetName = 'Email')]
+        [securestring]$Password
     )
     
     begin {
@@ -62,6 +81,10 @@ function Connect-FleetDM {
     
     process {
         try {
+            if ($PSCmdlet.ParameterSetName -eq 'Email') {
+                $Credential = [pscredential]::new($Email, $Password)
+            }
+
             $headers = @{
                 'Content-Type' = 'application/json'
             }

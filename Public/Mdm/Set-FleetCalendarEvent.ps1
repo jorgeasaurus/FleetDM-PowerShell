@@ -55,12 +55,7 @@ function Set-FleetCalendarEvent {
                 }
             }
             $response = Invoke-FleetDMRequest -Endpoint "fleets/$FleetId" -Method PATCH -Body $body
-            $fleet = $response.team
-            if (-not $fleet) { $fleet = $response.fleet }
-            if ($fleet -and $fleet.PSObject) {
-                $fleet.PSObject.TypeNames.Insert(0, 'FleetDM.Team')
-            }
-            return $fleet
+            return (Get-FleetRecord -Response $response)
         }
     }
 }

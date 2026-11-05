@@ -149,6 +149,20 @@ Describe "Connect-FleetDM" -Tags @('Unit', 'Authentication') {
                 Should -Throw "*Failed to authenticate with FleetDM*"
         }
         
+        It "Should log in with email and password" {
+            $password = ConvertTo-SecureString "password" -AsPlainText -Force
+
+            $result = Connect-FleetDM -BaseUri $script:TestBaseUri -Email "admin@example.com" -Password $password
+
+            $result.User | Should -Be "test@example.com"
+            Should -Invoke Invoke-RestMethod -ModuleName FleetDM-PowerShell -Times 1 -ParameterFilter {
+                $Uri -like "*/api/v1/fleet/login" -and
+                $Method -eq "POST" -and
+                ($Body | ConvertFrom-Json).email -eq "admin@example.com" -and
+                ($Body | ConvertFrom-Json).password -eq "password"
+            }
+        }
+
         It "Should handle missing token in login response" {
             Mock Invoke-RestMethod {
                 return @{ user = @{ email = "test@example.com" } }

@@ -114,13 +114,10 @@ function Invoke-FleetDMRequest {
                     }
 
                     $metadata = $pageData.Metadata
-                    $knowsNextPage = $false
-                    if ($metadata -is [System.Collections.IDictionary]) {
-                        $knowsNextPage = $metadata.ContainsKey('has_next_results')
-                    }
-                    elseif ($metadata -and ($metadata.PSObject.Properties.Name -contains 'has_next_results')) {
-                        $knowsNextPage = $true
-                    }
+                    $knowsNextPage = $metadata -and (
+                        ($metadata -is [System.Collections.IDictionary] -and $metadata.ContainsKey('has_next_results')) -or
+                        ($metadata.PSObject.Properties.Name -contains 'has_next_results')
+                    )
 
                     $firstId = $pageItems[0].id
                     if (-not $knowsNextPage -and $pageSize -gt 0 -and $pageItems.Count -ge $pageSize) {
@@ -382,15 +379,7 @@ function Get-FleetUriWithoutPage {
     }
 
     $path = $Uri.Substring(0, $question)
-    $query = $Uri.Substring($question + 1)
-    $kept = New-Object System.Collections.Generic.List[string]
-    foreach ($part in ($query -split '&')) {
-        if ([string]::IsNullOrEmpty($part)) { continue }
-        $name = ($part -split '=', 2)[0]
-        if ($name -eq 'page') { continue }
-        $kept.Add($part)
-    }
-
+    $kept = @($Uri.Substring($question + 1) -split '&' | Where-Object { $_ -and ($_ -split '=', 2)[0] -ne 'page' })
     if ($kept.Count -eq 0) {
         return $path
     }

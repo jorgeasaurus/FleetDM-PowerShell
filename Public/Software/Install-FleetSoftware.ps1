@@ -39,19 +39,10 @@ function Install-FleetSoftware {
         $target = "software title $SoftwareTitleId on host $HostId"
         if ($PSCmdlet.ShouldProcess($target, 'Install')) {
             $response = Invoke-FleetDMRequest -Endpoint "hosts/$HostId/software/$SoftwareTitleId/install" -Method POST
-            if ($response) {
-                if ($response.PSObject) {
-                    $response.PSObject.TypeNames.Insert(0, 'FleetDM.SoftwareInstall')
-                }
-                return $response
+            if ($response -and $response.PSObject) {
+                $response.PSObject.TypeNames.Insert(0, 'FleetDM.SoftwareInstall')
             }
-
-            [PSCustomObject]@{
-                PSTypeName = 'FleetDM.SoftwareInstall'
-                HostId = $HostId
-                SoftwareTitleId = $SoftwareTitleId
-                Status = 'accepted'
-            }
+            return $response
         }
     }
 }

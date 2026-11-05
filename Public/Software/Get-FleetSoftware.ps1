@@ -147,12 +147,7 @@ function Get-FleetSoftware {
                 if ($PSBoundParameters.ContainsKey('FleetId')) {
                     $versionQuery['fleet_id'] = $FleetId
                 }
-                if ($versionQuery.Count -gt 0) {
-                    $result = Invoke-FleetDMRequest -Endpoint $endpoint -Method GET -QueryParameters $versionQuery
-                }
-                else {
-                    $result = Invoke-FleetDMRequest -Endpoint $endpoint -Method GET
-                }
+                $result = Invoke-FleetDMRequest -Endpoint $endpoint -Method GET -QueryParameters $versionQuery
                 
                 # Add custom type for formatting
                 if ($result.software) {
@@ -271,17 +266,7 @@ function Get-FleetSoftware {
             # must still be applied to versions[].vulnerabilities.
             if ($useTitles -and $Cve -and $result) {
                 $result = @($result | Where-Object {
-                    $matchedCve = $false
-                    foreach ($softwareVersion in @($_.versions)) {
-                        foreach ($vulnerability in @($softwareVersion.vulnerabilities)) {
-                            # Titles return CVE ids as strings. Version inventory uses objects with a cve property.
-                            $cveId = if ($vulnerability -is [string]) { $vulnerability } else { [string]$vulnerability.cve }
-                            if ($cveId -like "*$Cve*") {
-                                $matchedCve = $true
-                            }
-                        }
-                    }
-                    $matchedCve
+                    @($_.versions.vulnerabilities | ForEach-Object { if ($_ -is [string]) { $_ } else { $_.cve } }) -like "*$Cve*"
                 })
                 Write-Verbose "Filtered to $($result.Count) software titles matching CVE '*$Cve*'"
             }

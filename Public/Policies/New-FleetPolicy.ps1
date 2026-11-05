@@ -161,7 +161,7 @@ function New-FleetPolicy {
         }
         
         $endpoint = if ($PSBoundParameters.ContainsKey('FleetId')) { "fleets/$FleetId/policies" } else { "global/policies" }
-        $targetDescription = "global policy '$Name'"
+        $targetDescription = if ($PSBoundParameters.ContainsKey('FleetId')) { "fleet $FleetId policy '$Name'" } else { "global policy '$Name'" }
         
         Write-Verbose "Creating new policy: $Name"
         Write-Verbose "Platform: $Platform"

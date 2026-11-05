@@ -292,6 +292,14 @@ Less secure but available when tokens aren't accessible:
 ```powershell
 $cred = Get-Credential
 Connect-FleetDM -BaseUri "https://fleet.example.com" -Credential $cred
+
+# Same login as: fleetctl login --email admin@example.com --password ...
+$password = Read-Host "Password" -AsSecureString
+Connect-FleetDM -BaseUri "https://fleet.example.com" -Email "admin@example.com" -Password $password
+
+# Same create as: fleetctl user create --name module-test --email api@example.com --password ... --api-only --global-role admin
+$apiPassword = Read-Host "API user password" -AsSecureString
+$apiUser = New-FleetUser -Name "module-test" -Email "api@example.com" -Password $apiPassword -ApiOnly -GlobalRole admin
 ```
 
 ## Security Best Practices
@@ -431,10 +439,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Fixed pagination, query-string encoding, single-element JSON arrays, report routes, host filters, and Fleet Premium HTTP 402/403 errors
 - Added Fleet Premium cmdlets for fleets, software installers, self-service, scripts, MDM, host wipe, OS updates, policy automations, calendar, and SSO JIT provisioning
-
-### 2.1.0 - Jamf GitOps conversion
-
-- Added `ConvertFrom-JamfXmlToFleetYaml`
+- Added `Connect-FleetDM -Email`/`-Password` and `New-FleetUser` for API-only users
 
 ### 1.0.0 - Initial Release
 

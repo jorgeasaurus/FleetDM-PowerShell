@@ -141,6 +141,40 @@ Describe 'Request and pagination fixes' -Tag 'Unit' {
             $result.Count | Should -Be 0
         }
     }
+
+    It 'reads a one-element page that ConvertFrom-Json has unwrapped' {
+        # Windows PowerShell 5.1 ConvertFrom-Json turns a one-element JSON array into one object.
+        InModuleScope FleetDM-PowerShell {
+            Mock Invoke-RestMethod {
+                return [PSCustomObject]@{
+                    count = 1
+                    software_titles = [PSCustomObject]@{ id = 9; name = 'One' }
+                    meta = [PSCustomObject]@{ has_next_results = $false }
+                }
+            }
+
+            $result = @(Invoke-FleetDMRequest -Endpoint 'software/titles' -QueryParameters @{ per_page = 1 } -FollowPagination)
+            $result.Count | Should -Be 1
+            $result[0].name | Should -Be 'One'
+            $result[0].PSObject.Properties.Name | Should -Not -Contain 'software_titles'
+        }
+    }
+
+    It 'prefers the list property over a nested object on the same page' {
+        InModuleScope FleetDM-PowerShell {
+            Mock Invoke-RestMethod {
+                return [PSCustomObject]@{
+                    counts = [PSCustomObject]@{ total = 1 }
+                    fleets = @([PSCustomObject]@{ id = 4; name = 'Labs' })
+                    meta = [PSCustomObject]@{ has_next_results = $false }
+                }
+            }
+
+            $result = @(Invoke-FleetDMRequest -Endpoint 'fleets' -QueryParameters @{ per_page = 20 } -FollowPagination)
+            $result.Count | Should -Be 1
+            $result[0].name | Should -Be 'Labs'
+        }
+    }
 }
 
 Describe 'Host, removal, and software fixes' -Tag 'Unit' {

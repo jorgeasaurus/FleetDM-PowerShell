@@ -29,17 +29,6 @@ function Get-FleetSelfServiceCategory {
 
     process {
         $response = Invoke-FleetDMRequest -Endpoint 'software/self_service_categories' -QueryParameters @{ fleet_id = $FleetId }
-        $result = $response
-        if ($null -ne $response.self_service_categories) {
-            $result = $response.self_service_categories
-        }
-
-        $result = @($result | Where-Object { $_ })
-        foreach ($category in $result) {
-            if ($category.PSObject) {
-                $category.PSObject.TypeNames.Insert(0, 'FleetDM.SelfServiceCategory')
-            }
-        }
-        return $result
+        return (Get-FleetListResult -Response $response -Name 'self_service_categories' -TypeName 'FleetDM.SelfServiceCategory')
     }
 }
