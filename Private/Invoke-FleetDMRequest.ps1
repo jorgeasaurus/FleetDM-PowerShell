@@ -61,7 +61,7 @@ function Format-FleetUnsafeSecretLiteral {
     # Query strings are masked separately. A preceding ? or & is not a PowerShell literal.
     $match = [regex]::Match(
         $Text,
-        '(?i)(?<![?&])(?:current_password|new_password|api_token|authorization|password|token|secret)\s*='
+        '(?i)(?<![A-Za-z0-9_?&-])(?:current_password|new_password|api_token|authorization|password|token|secret)\s*='
     )
     if (-not $match.Success) {
         return $Text

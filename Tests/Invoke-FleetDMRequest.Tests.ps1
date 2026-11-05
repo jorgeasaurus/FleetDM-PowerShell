@@ -664,6 +664,10 @@ Describe "Invoke-FleetDMRequest" -Tags @('Unit', 'Core') {
                 $newline = Get-FleetRedactedLogText -Text "@{password=REDACT-TEST-PREFIX}`nREDACT-TEST-LINE"
                 $newline | Should -Not -Match 'REDACT-TEST-PREFIX'
                 $newline | Should -Not -Match 'REDACT-TEST-LINE'
+
+                $longerName = Get-FleetRedactedLogText -Text 'host_token=keep-visible; query=SELECT 1'
+                $longerName | Should -Match 'host_token=keep-visible'
+                $longerName | Should -Match 'SELECT 1'
             }
         }
 
