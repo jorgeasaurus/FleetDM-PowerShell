@@ -151,6 +151,15 @@ a { color: var(--link); }
   clip: rect(0 0 0 0);
 }
 
+.nav-toggle:focus-visible {
+  outline: none;
+}
+
+.nav-toggle:focus-visible + .nav-button {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
 .nav-button { display: none; }
 
 .sidebar {

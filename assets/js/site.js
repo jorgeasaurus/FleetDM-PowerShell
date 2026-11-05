@@ -26,8 +26,27 @@
 
   document.querySelectorAll(".content h2, .content h3").forEach(function (heading) {
     var next = heading.nextElementSibling;
-    if (!next || next.tagName === "H2" || next.tagName === "H3") heading.hidden = true;
+    if (!next) {
+      heading.hidden = true;
+      return;
+    }
+    var rank = { H2: 2, H3: 3 };
+    var nextRank = rank[next.tagName];
+    // A following subheading is the section body. Hide only an empty section
+    // whose next heading is the same level or higher.
+    if (nextRank && nextRank <= rank[heading.tagName]) heading.hidden = true;
   });
+
+  var navToggle = document.getElementById("nav-toggle");
+  if (navToggle && window.matchMedia) {
+    var navQuery = window.matchMedia("(max-width: 860px)");
+    var syncNavToggle = function () {
+      navToggle.tabIndex = navQuery.matches ? 0 : -1;
+    };
+    syncNavToggle();
+    if (navQuery.addEventListener) navQuery.addEventListener("change", syncNavToggle);
+    else if (navQuery.addListener) navQuery.addListener(syncNavToggle);
+  }
 
   document.querySelectorAll(".content pre").forEach(function (pre) {
     if (pre.querySelector(".copy")) return;

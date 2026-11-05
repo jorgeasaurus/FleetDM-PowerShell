@@ -12,9 +12,10 @@ permissions:
   pages: write
   id-token: write
 
-# Allow only one concurrent deployment
+# Production deploys share the pages group with documentation.yml.
+# Pull request builds use their own group so a queued main deploy is not replaced.
 concurrency:
-  group: "pages"
+  group: ${{ github.event_name == 'pull_request' && format('pages-pr-{0}', github.ref) || 'pages' }}
   cancel-in-progress: false
 
 jobs:
