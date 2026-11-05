@@ -76,6 +76,8 @@ The module supports multiple authentication methods:
 
 For SSO-enabled environments, obtain an API token through the FleetDM UI.
 
+Verbose request and connection logs redact `password`, token fields, and `Authorization` bearer values at any nesting depth, including arrays, objects, and secret query parameters. `New-FleetUser` still sends the password to Fleet. `-Verbose`, transcripts, and CI logs show the redacted text. The HTTP URI is unchanged.
+
 ## Error Handling
 
 The module provides comprehensive error handling with detailed messages for:

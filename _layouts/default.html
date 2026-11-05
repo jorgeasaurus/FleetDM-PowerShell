@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>
+    (function () {
+      try {
+        var stored = localStorage.getItem("fleetdm-ps-theme");
+        var theme = stored || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (e) {
+        document.documentElement.setAttribute("data-theme", "light");
+      }
+    })();
+  </script>
+  {% assign here = page.url | default: "/" %}
+  {% if here == "/index.html" %}{% assign here = "/" %}{% endif %}
+  {% assign doc_title = page.title %}
+  {% if page.name contains "about_FleetDM" %}
+    {% assign doc_title = "About FleetDM-PowerShell" %}
+  {% elsif doc_title == nil or doc_title == empty %}
+    {% assign doc_title = page.name | replace: ".md", "" | replace: ".html", "" %}
+  {% endif %}
+  {% if here == "/" %}
+  <title>{{ site.title }}</title>
+  {% else %}
+  <title>{{ doc_title }} · {{ site.title }}</title>
+  {% endif %}
+  <meta name="description" content="{{ site.description }}">
+  <link rel="stylesheet" href="{{ '/assets/css/site.css' | relative_url }}">
+  <link rel="icon" href="{{ '/fleetPS.png' | relative_url }}">
+</head>
+<body>
+  <a class="skip" href="#content">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="{{ '/' | relative_url }}">
+      <span class="brand-name">FleetDM-PowerShell</span>
+      <span class="brand-meta">v{{ site.version }}</span>
+    </a>
+    <div class="header-links">
+      <a href="https://github.com/Jorgeasaurus/FleetDM-PowerShell">GitHub</a>
+      <a href="https://www.powershellgallery.com/packages/FleetDM-PowerShell">Gallery</a>
+      <a href="https://fleetdm.com/docs/rest-api/rest-api">Fleet API</a>
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-pressed="false">Dark theme</button>
+    </div>
+  </header>
+
+  <div class="shell">
+    <input id="nav-toggle" class="nav-toggle" type="checkbox">
+    <label class="nav-button" for="nav-toggle">Browse the docs</label>
+    {% include sidebar.html %}
+    <main id="content" class="content">
+      {% if page.path contains "docs/en-US/" %}
+      <p class="crumb">
+        <a href="{{ '/' | relative_url }}">Docs</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ '/#reference' | relative_url }}">Cmdlet reference</a>
+        <span aria-hidden="true">/</span>
+        <span>{{ doc_title }}</span>
+      </p>
+      {% endif %}
+      {{ content }}
+    </main>
+  </div>
+
+  <footer class="site-footer">
+    <p>FleetDM-PowerShell {{ site.version }} for Windows PowerShell 5.1 and PowerShell 7. <a href="{{ '/LICENSE' | relative_url }}">MIT License</a>.</p>
+    <p>
+      <a href="https://github.com/Jorgeasaurus/FleetDM-PowerShell">GitHub</a>
+      <span aria-hidden="true">·</span>
+      <a href="https://www.powershellgallery.com/packages/FleetDM-PowerShell">PowerShell Gallery</a>
+      <span aria-hidden="true">·</span>
+      <a href="https://fleetdm.com/docs">Fleet documentation</a>
+    </p>
+  </footer>
+  <script src="{{ '/assets/js/site.js' | relative_url }}"></script>
+</body>
+</html>

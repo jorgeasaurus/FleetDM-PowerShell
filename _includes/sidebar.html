@@ -1,0 +1,51 @@
+{% assign here = page.url | default: "/" %}
+{% if here == "/index.html" %}{% assign here = "/" %}{% endif %}
+<nav class="sidebar" aria-label="Documentation">
+  <div class="nav-filter">
+    <label for="cmdlet-filter">Find a page</label>
+    <input id="cmdlet-filter" type="search" placeholder="Filter" autocomplete="off">
+  </div>
+  <p class="nav-empty" hidden>No matching page.</p>
+
+  <div class="nav-static">
+    <h2>Start</h2>
+    <ul>
+      {% for item in site.data.nav.start %}
+      <li>
+        <a href="{{ item.url | relative_url }}"{% if item.url == here %} aria-current="page"{% endif %}>{{ item.title }}</a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="nav-groups">
+    <h2>Cmdlets</h2>
+    {% for group in site.data.nav.groups %}
+      {% assign group_open = false %}
+      {% for item in group.items %}
+        {% if item.url == here %}{% assign group_open = true %}{% endif %}
+      {% endfor %}
+    <details class="nav-group"{% if group_open %} open data-current-group="true"{% endif %}>
+      <summary>{{ group.title }}</summary>
+      <ul>
+        {% for item in group.items %}
+        <li>
+          <a class="nav-cmd" href="{{ item.url | relative_url }}"{% if item.url == here %} aria-current="page"{% endif %}>{{ item.title }}</a>
+        </li>
+        {% endfor %}
+      </ul>
+    </details>
+    {% endfor %}
+  </div>
+
+  <div class="nav-static">
+    <h2>Project</h2>
+    <ul>
+      {% for item in site.data.nav.project %}
+      <li>
+        <a href="{{ item.url | relative_url }}"{% if item.url == here %} aria-current="page"{% endif %}>{{ item.title }}</a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</nav>

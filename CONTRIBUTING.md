@@ -1,3 +1,8 @@
+---
+layout: default
+title: Contributing
+---
+
 # Contributing to FleetDM-PowerShell
 
 Thank you for your interest in contributing to the FleetDM-PowerShell module! This document provides guidelines and instructions for contributing.

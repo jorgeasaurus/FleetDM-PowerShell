@@ -1,3 +1,8 @@
+---
+layout: default
+title: README
+---
+
 # FleetDM-PowerShell
 
 ![FleetDM-PowerShell Logo](fleetPS.png)
@@ -16,11 +21,7 @@ A PowerShell module for the FleetDM REST API, including Fleet Free and optional 
 
 FleetDM-PowerShell provides a native PowerShell interface to Fleet. Free-tier cmdlets manage hosts, reports, policies, and software inventory. Premium cmdlets cover fleets, software installers, self-service categories, scripts, MDM lock and disk encryption, OS update enforcement, policy automations, calendar maintenance windows, and SSO just-in-time provisioning. Premium cmdlets call the same API and surface HTTP 402 from a Fleet Free server as a license error.
 
-## Download Statistics
-
-![Download Statistics](./download-chart.png)
-
-📚 **[View Full Documentation](https://jorgeasaurus.github.io/FleetDM-PowerShell/)** - Comprehensive online documentation with detailed cmdlet reference
+📚 **[View Full Documentation](https://jorgeasaurus.github.io/FleetDM-PowerShell/)** — install, connect, common tasks, and the cmdlet reference.
 
 ## Features
 
@@ -309,6 +310,7 @@ $apiUser = New-FleetUser -Name "module-test" -Email "api@example.com" -Password 
 3. **Create API-only users** for automation (requires admin access)
 4. **Rotate tokens regularly**
 5. **Use least-privilege principles** for API users
+6. **Verbose logs are redacted.** `-Verbose`, transcripts, and CI logs redact `password`, token fields, and `Authorization` bearer values at any nesting depth. `New-FleetUser` still sends the password to Fleet. The HTTP URI is unchanged.
 
 ## Development
 
@@ -358,7 +360,7 @@ Invoke-Pester -CodeCoverage @('Public\*.ps1', 'Private\*.ps1')
 # Test connection
 Test-NetConnection -ComputerName fleet.example.com -Port 443
 
-# Enable verbose output
+# Enable verbose output. Passwords and bearer tokens are redacted in that log.
 Connect-FleetDM -BaseUri "https://fleet.example.com" -ApiToken $token -Verbose
 ```
 
@@ -440,6 +442,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Fixed pagination, query-string encoding, single-element JSON arrays, report routes, host filters, and Fleet Premium HTTP 402/403 errors
 - Added Fleet Premium cmdlets for fleets, software installers, self-service, scripts, MDM, host wipe, OS updates, policy automations, calendar, and SSO JIT provisioning
 - Added `Connect-FleetDM -Email`/`-Password` and `New-FleetUser` for API-only users
+- Verbose logs redact passwords, token fields, and Authorization bearer values
 
 ### 1.0.0 - Initial Release
 

@@ -50,6 +50,15 @@ jobs:
         # Generate module page
         New-MarkdownHelp -Module FleetDM-PowerShell -OutputFolder $docsPath -WithModulePage -Force
         
+        # PlatyPS leaves a Liquid-looking placeholder. Jekyll would treat it as a tag.
+        Get-ChildItem $docsPath -Filter *.md | ForEach-Object {
+            $text = [System.IO.File]::ReadAllText($_.FullName)
+            $updated = $text.Replace('{{ Fill ProgressAction Description }}', 'ProgressAction is a PowerShell common parameter.')
+            if ($updated -ne $text) {
+                [System.IO.File]::WriteAllText($_.FullName, $updated)
+            }
+        }
+
         # Generate external help
         New-ExternalHelp -Path $docsPath -OutputPath ./en-US -Force
     
@@ -78,43 +87,32 @@ jobs:
       contents: read
       pages: write
       id-token: write
-    
+
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    
+
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-    
+
     - name: Setup Pages
-      uses: actions/configure-pages@v4
-    
-    - name: Prepare Documentation Site
-      run: |
-        # Create Jekyll config
-        cat > _config.yml << 'EOF'
-        theme: jekyll-theme-minimal
-        title: FleetDM-PowerShell
-        description: PowerShell module for FleetDM API integration
-        include:
-          - docs
-          - README.md
-          - CONTRIBUTING.md
-        EOF
-        
-        # Copy README as index
-        cp README.md index.md
-        
-        # Verify documentation exists
-        echo "Documentation files:"
-        ls -la docs/en-US/ 2>/dev/null || echo "Docs not found yet"
-    
-    - name: Upload Pages Artifact
-      uses: actions/upload-pages-artifact@v3
+      uses: actions/configure-pages@v5
+
+    # Build the repository Jekyll site. Do not overwrite _config.yml or index.md.
+    - name: Build with Jekyll
+      uses: actions/jekyll-build-pages@v1
       with:
-        path: .
-    
+        source: ./
+        destination: ./_site
+
+    - name: Upload Pages artifact
+      uses: actions/upload-pages-artifact@v3
+
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v4
