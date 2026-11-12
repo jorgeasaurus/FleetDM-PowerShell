@@ -556,4 +556,140 @@ Describe "Invoke-FleetDMMethod Tests" {
             }
         }
     }
+
+    Context "Response pipeline" {
+        It "returns one host envelope and types the nested host" {
+            Mock Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell {
+                [pscustomobject]@{
+                    host = [pscustomobject]@{
+                        id       = 123
+                        hostname = 'test-host'
+                    }
+                }
+            }
+
+            $result = Invoke-FleetDMMethod -Endpoint 'hosts/123'
+
+            @($result).Count | Should -Be 1
+            $result.host.id | Should -Be 123
+            $result.host.PSObject.TypeNames | Should -Contain 'FleetDM.Host'
+            Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -Times 1 -Exactly -ParameterFilter {
+                $Endpoint -eq 'hosts/123' -and $Method -eq 'GET'
+            }
+        }
+
+        It "returns one hosts envelope with each host typed" {
+            Mock Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell {
+                [pscustomobject]@{
+                    hosts = @(
+                        [pscustomobject]@{ id = 1; hostname = 'a' }
+                        [pscustomobject]@{ id = 2; hostname = 'b' }
+                    )
+                }
+            }
+
+            $result = Invoke-FleetDMMethod -Endpoint 'hosts'
+
+            @($result).Count | Should -Be 1
+            @($result.hosts).Count | Should -Be 2
+            $result.hosts[0].id | Should -Be 1
+            $result.hosts[1].id | Should -Be 2
+            $result.hosts[0].PSObject.TypeNames | Should -Contain 'FleetDM.Host'
+            $result.hosts[1].PSObject.TypeNames | Should -Contain 'FleetDM.Host'
+            Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -Times 1 -Exactly -ParameterFilter {
+                $Endpoint -eq 'hosts' -and $Method -eq 'GET'
+            }
+        }
+
+        It "returns one software page envelope" {
+            Mock Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell {
+                [pscustomobject]@{
+                    software = @(
+                        [pscustomobject]@{ id = 10; name = 'vim' }
+                        [pscustomobject]@{ id = 11; name = 'curl' }
+                    )
+                    count = 2
+                    meta  = [pscustomobject]@{
+                        has_next_results     = $false
+                        has_previous_results = $false
+                    }
+                }
+            }
+
+            $result = Invoke-FleetDMMethod -Endpoint 'hosts/123/software' -QueryParameters @{ per_page = 100 }
+
+            @($result).Count | Should -Be 1
+            @($result.software).Count | Should -Be 2
+            $result.count | Should -Be 2
+            $result.meta.has_next_results | Should -BeFalse
+            $result.software[0].PSObject.TypeNames | Should -Contain 'FleetDM.Software'
+            $result.software[1].PSObject.TypeNames | Should -Contain 'FleetDM.Software'
+            Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -Times 1 -Exactly -ParameterFilter {
+                $Endpoint -eq 'hosts/123/software' -and
+                $QueryParameters.per_page -eq 100 -and
+                -not $FollowPagination
+            }
+        }
+
+        It "returns an unmatched response unchanged" {
+            Mock Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell {
+                [pscustomobject]@{
+                    report = [pscustomobject]@{
+                        id       = 9
+                        query_id = 4
+                    }
+                }
+            }
+
+            $result = Invoke-FleetDMMethod -Endpoint 'reports/9/report'
+
+            @($result).Count | Should -Be 1
+            $result.report.id | Should -Be 9
+            $result.report.query_id | Should -Be 4
+            $result.PSObject.TypeNames[0] | Should -Be 'System.Management.Automation.PSCustomObject'
+            $result.report.PSObject.TypeNames | Should -Not -Contain 'FleetDM.Object'
+            $result.report.PSObject.TypeNames[0] | Should -Be 'System.Management.Automation.PSCustomObject'
+            Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -Times 1 -Exactly -ParameterFilter {
+                $Endpoint -eq 'reports/9/report'
+            }
+        }
+
+        It "returns the raw host envelope without a type name" {
+            Mock Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell {
+                [pscustomobject]@{
+                    host = [pscustomobject]@{
+                        id       = 123
+                        hostname = 'test-host'
+                    }
+                }
+            }
+
+            $result = Invoke-FleetDMMethod -Endpoint 'hosts/123' -Raw
+
+            @($result).Count | Should -Be 1
+            $result.host.id | Should -Be 123
+            $result.host.PSObject.TypeNames | Should -Not -Contain 'FleetDM.Host'
+            Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -Times 1 -Exactly -ParameterFilter {
+                $Endpoint -eq 'hosts/123' -and $Method -eq 'GET'
+            }
+        }
+
+        It "returns paginated items without an envelope" {
+            Mock Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell {
+                [pscustomobject]@{ id = 1; hostname = 'a' }
+                [pscustomobject]@{ id = 2; hostname = 'b' }
+            }
+
+            $result = Invoke-FleetDMMethod -Endpoint 'hosts' -FollowPagination
+
+            @($result).Count | Should -Be 2
+            $result[0].id | Should -Be 1
+            $result[1].id | Should -Be 2
+            $result[0].PSObject.TypeNames | Should -Not -Contain 'FleetDM.Host'
+            $result[1].PSObject.TypeNames | Should -Not -Contain 'FleetDM.Host'
+            Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -Times 1 -Exactly -ParameterFilter {
+                $Endpoint -eq 'hosts' -and $FollowPagination -eq $true
+            }
+        }
+    }
 }

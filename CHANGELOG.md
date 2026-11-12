@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- `Invoke-FleetDMMethod` returns the response envelope once. Nested hosts, policies, queries, software, users, teams, and labels still receive their `FleetDM.*` type names, and those objects are no longer written to the pipeline ahead of the envelope. Responses with no matching key, `-Raw`, and `-FollowPagination` are unchanged.
+
 ## 2.3.0
 
 ### Added
