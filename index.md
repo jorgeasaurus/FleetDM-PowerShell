@@ -63,6 +63,8 @@ Connect-FleetDM -BaseUri "https://fleet.example.com" -ApiToken $token
 Get-FleetHost -Status online
 ```
 
+An API-only user can be limited to specific endpoints. `Connect-FleetDM` still connects when that token can call `GET /api/v1/fleet/me` and `GET /api/v1/fleet/version` returns 403. The connection version is null. `-SkipVersionCheck` skips the version call and uses `/me` as the connection check. HTTP 401 remains an authentication failure.
+
 `Connect-FleetDM -Email` and `-Password` send the same login as `fleetctl login --email --password`. The account must be a local Fleet user. SSO users cannot sign in with a password.
 
 Creating a user requires an existing admin connection. `New-FleetUser -ApiOnly` sends `POST /users/admin`. Fleet includes `Token` on that response only. An API-only user cannot sign in to the Fleet UI, and that token does not expire. A normal login session does.

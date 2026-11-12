@@ -72,7 +72,7 @@ The module supports multiple authentication methods:
 
 1. **API Token**: Recommended for automation and scripting. API-only tokens do not expire.
 2. **Email and password**: Same login as `fleetctl login --email --password`. SSO users cannot use a password.
-3. **API-only users**: `New-FleetUser -ApiOnly` returns `Token`. That user cannot sign in to the Fleet UI.
+3. **API-only users**: `New-FleetUser -ApiOnly` returns `Token`. That user cannot sign in to the Fleet UI. If the user is limited to specific endpoints, a token that can call `GET /api/v1/fleet/me` still connects when `GET /api/v1/fleet/version` returns 403. The connection version is null. `-SkipVersionCheck` skips the version call. HTTP 401 is an authentication failure.
 
 For SSO-enabled environments, obtain an API token through the FleetDM UI.
 
