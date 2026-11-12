@@ -1,6 +1,6 @@
 @{
     RootModule = 'FleetDM-PowerShell.psm1'
-    ModuleVersion = '2.2.1'
+    ModuleVersion = '2.3.0'
     GUID = 'a7c4b8f3-2d1e-4f5a-9c8b-1e3d5a7f9b2c'
     Author = 'Jorge Suarez'
     CompanyName = 'Jorgeasaurus'
@@ -68,7 +68,7 @@
             LicenseUri = 'https://github.com/Jorgeasaurus/FleetDM-PowerShell/blob/main/LICENSE'
             ProjectUri = 'https://github.com/Jorgeasaurus/FleetDM-PowerShell'
             IconUri = ''
-            ReleaseNotes = 'Version 2.2.1 - Get-FleetTeam returns the fleet list when Fleet sends it under both teams and fleets. An empty or null legacy key no longer hides the records, and the two keys are not concatenated. Fixes #5.'
+            ReleaseNotes = 'Version 2.3.0 - Connect-FleetDM accepts an API-only token when GET /version returns 403, and requests retry HTTP 429 and gateway errors. Fixes #7 and #8.'
             Prerelease = ''
             RequireLicenseAcceptance = $false
             ExternalModuleDependencies = @()

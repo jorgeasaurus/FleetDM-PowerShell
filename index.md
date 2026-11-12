@@ -5,7 +5,7 @@ title: FleetDM-PowerShell
 
 # FleetDM-PowerShell
 
-<p class="lead">The module calls the Fleet REST API from Windows PowerShell 5.1 and PowerShell 7. Version 2.2.0 adds Fleet Premium cmdlets, host wipe, and secret redaction in verbose logs.</p>
+<p class="lead">The module calls the Fleet REST API from Windows PowerShell 5.1 and PowerShell 7. Version 2.3.0 retries HTTP 429 and gateway errors, and connects an API-only token when GET /version returns 403. Version 2.2.0 adds Fleet Premium cmdlets, host wipe, and secret redaction in verbose logs.</p>
 
 <div class="callouts">
 <div class="callout" markdown="1">
@@ -64,6 +64,8 @@ Connect-FleetDM -BaseUri "https://fleet.example.com" -ApiToken $token
 
 Get-FleetHost -Status online
 ```
+
+An API-only user can be limited to specific endpoints. `Connect-FleetDM` still connects when that token can call `GET /api/v1/fleet/me` and `GET /api/v1/fleet/version` returns 403. The connection version is null. `-SkipVersionCheck` skips the version call and uses `/me` as the connection check. HTTP 401 remains an authentication failure.
 
 `Connect-FleetDM -Email` and `-Password` send the same login as `fleetctl login --email --password`. The account must be a local Fleet user. SSO users cannot sign in with a password.
 

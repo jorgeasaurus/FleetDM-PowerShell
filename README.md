@@ -294,6 +294,13 @@ $token = Read-Host "Enter API Token" -AsSecureString
 Connect-FleetDM -BaseUri "https://fleet.example.com" -ApiToken $token
 ```
 
+An API-only user can be limited to specific endpoints. A token that can call `GET /api/v1/fleet/me` still connects when `GET /api/v1/fleet/version` returns 403. The connection version is null. `-SkipVersionCheck` skips the version call. `/me` must return the current user.
+
+```powershell
+$token = Read-Host "Enter API Token" -AsSecureString
+Connect-FleetDM -BaseUri "https://fleet.example.com" -ApiToken $token -SkipVersionCheck
+```
+
 ### Username/Password
 
 Less secure but available when tokens aren't accessible:
@@ -445,10 +452,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Version History
 
-### 2.2.1 - Fleet list responses and request retries
+### 2.3.0
+
+- `Connect-FleetDM` connects when an API-only token can call `GET /api/v1/fleet/me` but `GET /api/v1/fleet/version` returns 403. The stored version is null. `-SkipVersionCheck` skips the version call.
+- Requests retry HTTP 429 for every method, and HTTP 502, 503, and 504 for GET. The default is 3 extra attempts, capped at 120 seconds. `-RetryNonIdempotent` opts in for other methods.
+
+### 2.2.1
 
 - `Get-FleetTeam` returns fleets when Fleet sends the same list under both `teams` and `fleets`
-- Requests retry HTTP 429 for every method, and HTTP 502, 503, and 504 for GET, up to 3 extra attempts
 
 ### 2.2.0 - Premium cmdlets and API fixes
 

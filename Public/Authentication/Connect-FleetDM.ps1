@@ -6,6 +6,13 @@ function Connect-FleetDM {
     .DESCRIPTION
         Connects to a FleetDM instance using either an API token or email/password credentials.
         The connection is stored at the module level and used by all other FleetDM cmdlets.
+
+        The token is checked with GET /api/v1/fleet/version, then GET /api/v1/fleet/me.
+        An API-only user can be limited to specific endpoints. If /version returns 403 and
+        /me returns the current user (id and email), the connection is stored with Version
+        set to $null. HTTP 401 is an authentication failure. HTTP 403 from /me means the
+        token needs GET /api/v1/fleet/me allowed. Other FleetDM cmdlets do not read the
+        stored version. Use -SkipVersionCheck to skip /version and require a successful /me call.
     
     .PARAMETER BaseUri
         The base URI of your FleetDM instance (e.g., https://fleet.example.com)
@@ -23,6 +30,11 @@ function Connect-FleetDM {
 
     .PARAMETER Password
         Fleet user password. Same value as fleetctl login --password.
+
+    .PARAMETER SkipVersionCheck
+        Do not call GET /api/v1/fleet/version. The token is checked with GET /api/v1/fleet/me,
+        and the stored version is $null. Use this when an API-only user is not allowed to call
+        the version endpoint.
     
     .EXAMPLE
         $token = ConvertTo-SecureString "your-api-token" -AsPlainText -Force
@@ -46,6 +58,13 @@ function Connect-FleetDM {
         Connect-FleetDM -BaseUri "https://fleet.example.com" -ApiToken (Read-Host -AsSecureString "Enter API Token")
         
         Prompts for API token securely and connects to FleetDM
+
+    .EXAMPLE
+        $token = ConvertTo-SecureString "your-api-token" -AsPlainText -Force
+        Connect-FleetDM -BaseUri "https://fleet.example.com" -ApiToken $token -SkipVersionCheck
+
+        Connects when the token can call /me but is not allowed to call /version.
+        The connection version is $null.
     
     .LINK
         https://fleetdm.com/docs/using-fleet/rest-api#authentication
@@ -68,7 +87,10 @@ function Connect-FleetDM {
         [string]$Email,
 
         [Parameter(Mandatory, ParameterSetName = 'Email')]
-        [securestring]$Password
+        [securestring]$Password,
+
+        [Parameter()]
+        [switch]$SkipVersionCheck
     )
     
     begin {
@@ -133,47 +155,65 @@ function Connect-FleetDM {
                 }
             }
             
-            # Test connection by getting version
-            $versionUri = "$BaseUri/api/v1/fleet/version"
-            
-            Write-Verbose "Testing connection to: $versionUri"
-            Write-Verbose "Headers: $(Get-FleetRedactedLogText -Text $headers)"
-            
-            try {
-                $webResponse = Invoke-WebRequest -Uri $versionUri `
-                    -Headers $headers `
-                    -WebSession $script:FleetDMWebSession `
-                    -ErrorAction Stop
+            # Version is display metadata. No other cmdlet reads it, so $null is safe.
+            $fleetVersion = $null
+            $versionAccepted = $false
+
+            if ($SkipVersionCheck) {
+                Write-Verbose "Skipping GET /api/v1/fleet/version. The token will be checked with GET /api/v1/fleet/me."
+            }
+            else {
+                # Test connection by getting version
+                $versionUri = "$BaseUri/api/v1/fleet/version"
                 
-                # Parse response based on content type
-                if ($webResponse.Headers['Content-Type'] -like 'application/json*') {
-                    $versionResponse = $webResponse.Content | ConvertFrom-Json
-                }
-                else {
-                    # Try to parse as JSON anyway
-                    try {
+                Write-Verbose "Testing connection to: $versionUri"
+                Write-Verbose "Headers: $(Get-FleetRedactedLogText -Text $headers)"
+                
+                try {
+                    $webResponse = Invoke-WebRequest -Uri $versionUri `
+                        -Headers $headers `
+                        -WebSession $script:FleetDMWebSession `
+                        -ErrorAction Stop
+                    
+                    # Parse response based on content type
+                    if ($webResponse.Headers['Content-Type'] -like 'application/json*') {
                         $versionResponse = $webResponse.Content | ConvertFrom-Json
                     }
-                    catch {
-                        throw "Unexpected response format from version endpoint"
+                    else {
+                        # Try to parse as JSON anyway
+                        try {
+                            $versionResponse = $webResponse.Content | ConvertFrom-Json
+                        }
+                        catch {
+                            throw "Unexpected response format from version endpoint"
+                        }
                     }
+
+                    $fleetVersion = $versionResponse.version
+                    $versionAccepted = $true
+                    
+                    Write-Verbose "Successfully connected to FleetDM version $fleetVersion"
                 }
-                
-                Write-Verbose "Successfully connected to FleetDM version $($versionResponse.version)"
-            }
-            catch {
-                Write-Verbose "Error details: $($_.Exception.Message)"
-                Write-Verbose "Error type: $($_.Exception.GetType().FullName)"
-                
-                if ($_.Exception.Response -and $_.Exception.Response.StatusCode -eq 'Unauthorized') {
-                    throw "Authentication failed. Please check your credentials or API token."
-                }
-                else {
-                    throw "Failed to connect to FleetDM: $($_.Exception.Message)"
+                catch {
+                    Write-Verbose "Error details: $($_.Exception.Message)"
+                    Write-Verbose "Error type: $($_.Exception.GetType().FullName)"
+
+                    $statusCode = Get-FleetConnectStatusCode -ErrorRecord $_
+                    if ($statusCode -eq 401) {
+                        throw "Authentication failed. Please check your credentials or API token."
+                    }
+                    if ($statusCode -eq 403) {
+                        Write-Verbose "GET /api/v1/fleet/version returned 403. The token will be checked with GET /api/v1/fleet/me. Version will be stored as null."
+                        $fleetVersion = $null
+                    }
+                    else {
+                        throw "Failed to connect to FleetDM: $($_.Exception.Message)"
+                    }
                 }
             }
             
-            # Get current user information
+            # Get current user information. This is the connection check when version
+            # was skipped or returned 403.
             $meUri = "$BaseUri/api/v1/fleet/me"
             
             try {
@@ -181,20 +221,42 @@ function Connect-FleetDM {
                     -Headers $headers `
                     -WebSession $script:FleetDMWebSession `
                     -ErrorAction Stop
-                
-                Write-Verbose "Authenticated as: $($userInfo.user.name) ($($userInfo.user.email))"
-                Write-Verbose "Global role: $($userInfo.user.global_role)"
             }
             catch {
-                Write-Warning "Could not retrieve user information"
-                $userInfo = $null
+                Write-Verbose "Error details: $($_.Exception.Message)"
+                Write-Verbose "Error type: $($_.Exception.GetType().FullName)"
+
+                if ($versionAccepted) {
+                    Write-Warning "Could not retrieve user information"
+                    $userInfo = $null
+                }
+                else {
+                    $statusCode = Get-FleetConnectStatusCode -ErrorRecord $_
+                    if ($statusCode -eq 401) {
+                        throw "Authentication failed. Please check your credentials or API token."
+                    }
+                    if ($statusCode -eq 403) {
+                        throw "Failed to connect to FleetDM: GET /api/v1/fleet/me returned 403. The token needs GET /api/v1/fleet/me allowed."
+                    }
+
+                    throw "Failed to connect to FleetDM: $($_.Exception.Message)"
+                }
+            }
+
+            if (-not $versionAccepted -and -not (Test-FleetCurrentUser -UserInfo $userInfo)) {
+                throw "Failed to connect to FleetDM: GET /api/v1/fleet/me did not return the current user."
+            }
+
+            if ($null -ne $userInfo -and $userInfo -isnot [string]) {
+                Write-Verbose "Authenticated as: $($userInfo.user.name) ($($userInfo.user.email))"
+                Write-Verbose "Global role: $($userInfo.user.global_role)"
             }
             
             # Store connection information
             $script:FleetDMConnection = @{
                 BaseUri = $BaseUri
                 Headers = $headers
-                Version = $versionResponse.version
+                Version = $fleetVersion
                 User = $userInfo.user
                 ConnectedAt = Get-Date
             }
@@ -203,14 +265,16 @@ function Connect-FleetDM {
             $connectionInfo = [PSCustomObject]@{
                 PSTypeName = 'FleetDM.Connection'
                 BaseUri = $BaseUri
-                Version = $versionResponse.version
+                Version = $fleetVersion
                 User = if ($userInfo) { $userInfo.user.email } else { 'Unknown' }
                 GlobalRole = if ($userInfo) { $userInfo.user.global_role } else { 'Unknown' }
                 ConnectedAt = $script:FleetDMConnection.ConnectedAt
             }
             
             Write-Host "Successfully connected to FleetDM at $BaseUri" -ForegroundColor Green
-            Write-Host "Version: $($versionResponse.version)" -ForegroundColor Cyan
+            if (-not [string]::IsNullOrWhiteSpace([string]$fleetVersion)) {
+                Write-Host "Version: $fleetVersion" -ForegroundColor Cyan
+            }
             if ($userInfo) {
                 Write-Host "Authenticated as: $($userInfo.user.email) [$($userInfo.user.global_role)]" -ForegroundColor Cyan
             }
