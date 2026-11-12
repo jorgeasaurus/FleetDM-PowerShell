@@ -284,10 +284,12 @@ The most secure method is using API tokens:
 # Store token securely
 $token = Read-Host "Enter API Token" -AsSecureString
 Connect-FleetDM -BaseUri "https://fleet.example.com" -ApiToken $token
+```
 
-# An API-only user can be limited to specific endpoints. A token that can call
-# GET /api/v1/fleet/me still connects when GET /api/v1/fleet/version returns 403.
-# The connection version is null. -SkipVersionCheck skips the version call.
+An API-only user can be limited to specific endpoints. A token that can call `GET /api/v1/fleet/me` still connects when `GET /api/v1/fleet/version` returns 403. The connection version is null. `-SkipVersionCheck` skips the version call. `/me` must return the current user.
+
+```powershell
+$token = Read-Host "Enter API Token" -AsSecureString
 Connect-FleetDM -BaseUri "https://fleet.example.com" -ApiToken $token -SkipVersionCheck
 ```
 

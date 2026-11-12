@@ -69,3 +69,36 @@ function Get-FleetConnectStatusCode {
 
     return $null
 }
+
+function Test-FleetCurrentUser {
+    <#
+    .SYNOPSIS
+        Returns true when a /me payload is the current Fleet user.
+
+    .DESCRIPTION
+        The payload must be an object whose user has both an id and an email.
+        A string, such as an HTML proxy page, is not a user.
+
+    .PARAMETER UserInfo
+        The object returned by GET /api/v1/fleet/me.
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [AllowNull()]
+        [object]$UserInfo
+    )
+
+    if ($null -eq $UserInfo -or $UserInfo -is [string]) {
+        return $false
+    }
+
+    $currentUser = $UserInfo.user
+    if ($null -eq $currentUser -or $currentUser -is [string]) {
+        return $false
+    }
+
+    $hasUserId = $null -ne $currentUser.id -and -not [string]::IsNullOrWhiteSpace([string]$currentUser.id)
+    $hasUserEmail = -not [string]::IsNullOrWhiteSpace([string]$currentUser.email)
+    return $hasUserId -and $hasUserEmail
+}

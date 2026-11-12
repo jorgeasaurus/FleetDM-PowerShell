@@ -9,9 +9,10 @@ function Connect-FleetDM {
 
         The token is checked with GET /api/v1/fleet/version, then GET /api/v1/fleet/me.
         An API-only user can be limited to specific endpoints. If /version returns 403 and
-        /me succeeds, the connection is stored with Version set to $null. HTTP 401 is an
-        authentication failure. Other FleetDM cmdlets do not read the stored version.
-        Use -SkipVersionCheck to skip /version and require a successful /me call.
+        /me returns the current user (id and email), the connection is stored with Version
+        set to $null. HTTP 401 is an authentication failure. HTTP 403 from /me means the
+        token needs GET /api/v1/fleet/me allowed. Other FleetDM cmdlets do not read the
+        stored version. Use -SkipVersionCheck to skip /version and require a successful /me call.
     
     .PARAMETER BaseUri
         The base URI of your FleetDM instance (e.g., https://fleet.example.com)
@@ -220,11 +221,11 @@ function Connect-FleetDM {
                     -Headers $headers `
                     -WebSession $script:FleetDMWebSession `
                     -ErrorAction Stop
-                
-                Write-Verbose "Authenticated as: $($userInfo.user.name) ($($userInfo.user.email))"
-                Write-Verbose "Global role: $($userInfo.user.global_role)"
             }
             catch {
+                Write-Verbose "Error details: $($_.Exception.Message)"
+                Write-Verbose "Error type: $($_.Exception.GetType().FullName)"
+
                 if ($versionAccepted) {
                     Write-Warning "Could not retrieve user information"
                     $userInfo = $null
@@ -234,9 +235,21 @@ function Connect-FleetDM {
                     if ($statusCode -eq 401) {
                         throw "Authentication failed. Please check your credentials or API token."
                     }
+                    if ($statusCode -eq 403) {
+                        throw "Failed to connect to FleetDM: GET /api/v1/fleet/me returned 403. The token needs GET /api/v1/fleet/me allowed."
+                    }
 
                     throw "Failed to connect to FleetDM: $($_.Exception.Message)"
                 }
+            }
+
+            if (-not $versionAccepted -and -not (Test-FleetCurrentUser -UserInfo $userInfo)) {
+                throw "Failed to connect to FleetDM: GET /api/v1/fleet/me did not return the current user."
+            }
+
+            if ($null -ne $userInfo -and $userInfo -isnot [string]) {
+                Write-Verbose "Authenticated as: $($userInfo.user.name) ($($userInfo.user.email))"
+                Write-Verbose "Global role: $($userInfo.user.global_role)"
             }
             
             # Store connection information

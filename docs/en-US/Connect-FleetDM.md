@@ -36,9 +36,10 @@ The connection is stored at the module level and used by all other FleetDM cmdle
 
 The token is checked with GET /api/v1/fleet/version, then GET /api/v1/fleet/me.
 An API-only user can be limited to specific endpoints. If /version returns 403 and
-/me succeeds, the connection is stored with Version set to $null. HTTP 401 is an
-authentication failure. Other FleetDM cmdlets do not read the stored version.
-Use -SkipVersionCheck to skip /version and require a successful /me call.
+/me returns the current user (id and email), the connection is stored with Version
+set to $null. HTTP 401 is an authentication failure. HTTP 403 from /me means the
+token needs GET /api/v1/fleet/me allowed. Other FleetDM cmdlets do not read the
+stored version. Use -SkipVersionCheck to skip /version and require a successful /me call.
 
 ## EXAMPLES
 

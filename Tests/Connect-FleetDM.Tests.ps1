@@ -25,6 +25,34 @@ BeforeAll {
         )
     }
 
+    $script:CanUseHttpResponseException = $null -ne ('Microsoft.PowerShell.Commands.HttpResponseException' -as [type])
+
+    function New-ConnectHttpResponseExceptionRecord {
+        param(
+            [Parameter(Mandatory)]
+            [System.Net.HttpStatusCode]$StatusCode,
+
+            [string]$Message
+        )
+
+        if (-not $script:CanUseHttpResponseException) {
+            throw 'HttpResponseException is not available in this PowerShell edition.'
+        }
+
+        if (-not $Message) {
+            $Message = "Response status code does not indicate success: $([int]$StatusCode) ($StatusCode)."
+        }
+
+        $response = [System.Net.Http.HttpResponseMessage]::new($StatusCode)
+        $exception = [Microsoft.PowerShell.Commands.HttpResponseException]::new($Message, $response)
+        return [System.Management.Automation.ErrorRecord]::new(
+            $exception,
+            'WebCmdletWebResponseException',
+            [System.Management.Automation.ErrorCategory]::InvalidOperation,
+            $null
+        )
+    }
+
     # Import test helper
     . (Join-Path $PSScriptRoot 'TestHelper.ps1')
     
@@ -345,10 +373,10 @@ Describe "Connect-FleetDM" -Tags @('Unit', 'Authentication') {
             $null -eq $result.Version | Should -BeTrue
             @($warnings) | Should -BeNullOrEmpty
 
-            Should -Invoke Invoke-WebRequest -ModuleName FleetDM-PowerShell -Times 1 -ParameterFilter {
+            Should -Invoke Invoke-WebRequest -ModuleName FleetDM-PowerShell -Times 1 -Exactly -ParameterFilter {
                 $Uri -like '*/api/v1/fleet/version*'
             }
-            Should -Invoke Invoke-RestMethod -ModuleName FleetDM-PowerShell -Times 1 -ParameterFilter {
+            Should -Invoke Invoke-RestMethod -ModuleName FleetDM-PowerShell -Times 1 -Exactly -ParameterFilter {
                 $Uri -like '*/api/v1/fleet/me*'
             }
 
@@ -381,9 +409,10 @@ Describe "Connect-FleetDM" -Tags @('Unit', 'Authentication') {
 
             $thrown | Should -Not -BeNullOrEmpty
             $thrown.Exception.Message | Should -BeLike '*Failed to connect to FleetDM*'
+            $thrown.Exception.Message | Should -BeLike '*The token needs GET /api/v1/fleet/me allowed*'
             $thrown.Exception.Message | Should -Not -BeLike '*Authentication failed*'
 
-            Should -Invoke Invoke-RestMethod -ModuleName FleetDM-PowerShell -Times 1 -ParameterFilter {
+            Should -Invoke Invoke-RestMethod -ModuleName FleetDM-PowerShell -Times 1 -Exactly -ParameterFilter {
                 $Uri -like '*/api/v1/fleet/me*'
             }
 
@@ -422,10 +451,10 @@ Describe "Connect-FleetDM" -Tags @('Unit', 'Authentication') {
             $result.GlobalRole | Should -Be 'admin'
             $null -eq $result.Version | Should -BeTrue
 
-            Should -Invoke Invoke-WebRequest -ModuleName FleetDM-PowerShell -Times 0 -ParameterFilter {
+            Should -Invoke Invoke-WebRequest -ModuleName FleetDM-PowerShell -Times 0 -Exactly -ParameterFilter {
                 $Uri -like '*/api/v1/fleet/version*'
             }
-            Should -Invoke Invoke-RestMethod -ModuleName FleetDM-PowerShell -Times 1 -ParameterFilter {
+            Should -Invoke Invoke-RestMethod -ModuleName FleetDM-PowerShell -Times 1 -Exactly -ParameterFilter {
                 $Uri -like '*/api/v1/fleet/me*'
             }
 
@@ -462,12 +491,333 @@ Describe "Connect-FleetDM" -Tags @('Unit', 'Authentication') {
             $token = ConvertTo-SecureString $script:TestToken -AsPlainText -Force
 
             { Connect-FleetDM -BaseUri $script:TestBaseUri -ApiToken $token -SkipVersionCheck } |
-                Should -Throw '*Failed to connect to FleetDM*'
+                Should -Throw '*The token needs GET /api/v1/fleet/me allowed*'
 
             InModuleScope FleetDM-PowerShell {
                 $script:FleetDMConnection | Should -BeNullOrEmpty
                 $script:FleetDMWebSession | Should -BeNullOrEmpty
             }
+        }
+
+        It "Should throw when GET /version returns 403 and GET /me returns an HTML body" {
+            Mock Invoke-WebRequest {
+                throw (New-ConnectHttpErrorRecord -StatusCode ([System.Net.HttpStatusCode]::Forbidden) -Message 'The remote server returned an error: (403) Forbidden.')
+            } -ParameterFilter { $Uri -like '*/api/v1/fleet/version*' } -ModuleName FleetDM-PowerShell
+            Mock Invoke-RestMethod {
+                return '<html>'
+            } -ParameterFilter { $Uri -like '*/api/v1/fleet/me*' } -ModuleName FleetDM-PowerShell
+
+            $token = ConvertTo-SecureString $script:TestToken -AsPlainText -Force
+
+            { Connect-FleetDM -BaseUri $script:TestBaseUri -ApiToken $token } |
+                Should -Throw '*did not return the current user*'
+
+            InModuleScope FleetDM-PowerShell {
+                $script:FleetDMConnection | Should -BeNullOrEmpty
+                $script:FleetDMWebSession | Should -BeNullOrEmpty
+            }
+        }
+
+        It "Should throw when GET /version returns 403 and GET /me has no user id or email" {
+            Mock Invoke-WebRequest {
+                throw (New-ConnectHttpErrorRecord -StatusCode ([System.Net.HttpStatusCode]::Forbidden) -Message 'The remote server returned an error: (403) Forbidden.')
+            } -ParameterFilter { $Uri -like '*/api/v1/fleet/version*' } -ModuleName FleetDM-PowerShell
+            Mock Invoke-RestMethod {
+                return @{ user = @{ name = 'Proxy' } }
+            } -ParameterFilter { $Uri -like '*/api/v1/fleet/me*' } -ModuleName FleetDM-PowerShell
+
+            $token = ConvertTo-SecureString $script:TestToken -AsPlainText -Force
+
+            { Connect-FleetDM -BaseUri $script:TestBaseUri -ApiToken $token } |
+                Should -Throw '*did not return the current user*'
+
+            InModuleScope FleetDM-PowerShell {
+                $script:FleetDMConnection | Should -BeNullOrEmpty
+            }
+        }
+
+        It "Should not call GET /me when GET /version fails without an HTTP status" {
+            Mock Invoke-WebRequest {
+                throw ([System.Net.Http.HttpRequestException]::new('The remote name could not be resolved'))
+            } -ParameterFilter { $Uri -like '*/api/v1/fleet/version*' } -ModuleName FleetDM-PowerShell
+
+            $token = ConvertTo-SecureString $script:TestToken -AsPlainText -Force
+
+            { Connect-FleetDM -BaseUri $script:TestBaseUri -ApiToken $token } |
+                Should -Throw '*Failed to connect to FleetDM*'
+
+            Should -Invoke Invoke-RestMethod -ModuleName FleetDM-PowerShell -Times 0 -Exactly -ParameterFilter {
+                $Uri -like '*/api/v1/fleet/me*'
+            }
+
+            InModuleScope FleetDM-PowerShell {
+                $script:FleetDMConnection | Should -BeNullOrEmpty
+            }
+        }
+
+        It "Should not fall back to GET /me when GET /version returns 404" {
+            Mock Invoke-WebRequest {
+                throw (New-ConnectHttpErrorRecord -StatusCode ([System.Net.HttpStatusCode]::NotFound) -Message 'The remote server returned an error: (404) Not Found.')
+            } -ParameterFilter { $Uri -like '*/api/v1/fleet/version*' } -ModuleName FleetDM-PowerShell
+
+            $token = ConvertTo-SecureString $script:TestToken -AsPlainText -Force
+
+            { Connect-FleetDM -BaseUri $script:TestBaseUri -ApiToken $token } |
+                Should -Throw '*Failed to connect to FleetDM*'
+
+            Should -Invoke Invoke-RestMethod -ModuleName FleetDM-PowerShell -Times 0 -Exactly -ParameterFilter {
+                $Uri -like '*/api/v1/fleet/me*'
+            }
+        }
+
+        It "Should not fall back to GET /me when GET /version returns 500" {
+            Mock Invoke-WebRequest {
+                throw (New-ConnectHttpErrorRecord -StatusCode ([System.Net.HttpStatusCode]::InternalServerError) -Message 'The remote server returned an error: (500) Internal Server Error.')
+            } -ParameterFilter { $Uri -like '*/api/v1/fleet/version*' } -ModuleName FleetDM-PowerShell
+
+            $token = ConvertTo-SecureString $script:TestToken -AsPlainText -Force
+
+            { Connect-FleetDM -BaseUri $script:TestBaseUri -ApiToken $token } |
+                Should -Throw '*Failed to connect to FleetDM*'
+
+            Should -Invoke Invoke-RestMethod -ModuleName FleetDM-PowerShell -Times 0 -Exactly -ParameterFilter {
+                $Uri -like '*/api/v1/fleet/me*'
+            }
+        }
+
+        It "Should throw Authentication failed when GET /version returns 403 and GET /me returns 401" {
+            Mock Invoke-WebRequest {
+                throw (New-ConnectHttpErrorRecord -StatusCode ([System.Net.HttpStatusCode]::Forbidden) -Message 'The remote server returned an error: (403) Forbidden.')
+            } -ParameterFilter { $Uri -like '*/api/v1/fleet/version*' } -ModuleName FleetDM-PowerShell
+            Mock Invoke-RestMethod {
+                throw (New-ConnectHttpErrorRecord -StatusCode ([System.Net.HttpStatusCode]::Unauthorized) -Message 'The remote server returned an error: (401) Unauthorized.')
+            } -ParameterFilter { $Uri -like '*/api/v1/fleet/me*' } -ModuleName FleetDM-PowerShell
+
+            $token = ConvertTo-SecureString $script:TestToken -AsPlainText -Force
+
+            { Connect-FleetDM -BaseUri $script:TestBaseUri -ApiToken $token } |
+                Should -Throw '*Authentication failed*'
+
+            Should -Invoke Invoke-RestMethod -ModuleName FleetDM-PowerShell -Times 1 -Exactly -ParameterFilter {
+                $Uri -like '*/api/v1/fleet/me*'
+            }
+
+            InModuleScope FleetDM-PowerShell {
+                $script:FleetDMConnection | Should -BeNullOrEmpty
+            }
+        }
+
+        It "Should throw when GET /version returns 403 and GET /me times out" {
+            Mock Invoke-WebRequest {
+                throw (New-ConnectHttpErrorRecord -StatusCode ([System.Net.HttpStatusCode]::Forbidden) -Message 'The remote server returned an error: (403) Forbidden.')
+            } -ParameterFilter { $Uri -like '*/api/v1/fleet/version*' } -ModuleName FleetDM-PowerShell
+            Mock Invoke-RestMethod {
+                throw ([System.Threading.Tasks.TaskCanceledException]::new('The request was canceled due to the configured HttpClient.Timeout'))
+            } -ParameterFilter { $Uri -like '*/api/v1/fleet/me*' } -ModuleName FleetDM-PowerShell
+
+            $token = ConvertTo-SecureString $script:TestToken -AsPlainText -Force
+
+            $thrown = $null
+            try {
+                Connect-FleetDM -BaseUri $script:TestBaseUri -ApiToken $token
+            }
+            catch {
+                $thrown = $_
+            }
+
+            $thrown | Should -Not -BeNullOrEmpty
+            $thrown.Exception.Message | Should -BeLike '*Failed to connect to FleetDM*'
+            $thrown.Exception.Message | Should -Not -BeLike '*Authentication failed*'
+
+            InModuleScope FleetDM-PowerShell {
+                $script:FleetDMConnection | Should -BeNullOrEmpty
+                $script:FleetDMWebSession | Should -BeNullOrEmpty
+            }
+        }
+
+        It "Should connect with credentials when GET /version returns 403 and GET /me returns the user" {
+            Mock Invoke-WebRequest {
+                throw (New-ConnectHttpErrorRecord -StatusCode ([System.Net.HttpStatusCode]::Forbidden) -Message 'The remote server returned an error: (403) Forbidden.')
+            } -ParameterFilter { $Uri -like '*/api/v1/fleet/version*' } -ModuleName FleetDM-PowerShell
+
+            $credential = [PSCredential]::new('test@example.com', (ConvertTo-SecureString 'password' -AsPlainText -Force))
+            $result = Connect-FleetDM -BaseUri $script:TestBaseUri -Credential $credential
+
+            $result.User | Should -Be 'test@example.com'
+            $null -eq $result.Version | Should -BeTrue
+
+            Should -Invoke Invoke-RestMethod -ModuleName FleetDM-PowerShell -Times 1 -Exactly -ParameterFilter {
+                $Uri -like '*/api/v1/fleet/login*' -and $Method -eq 'POST'
+            }
+            Should -Invoke Invoke-RestMethod -ModuleName FleetDM-PowerShell -Times 1 -Exactly -ParameterFilter {
+                $Uri -like '*/api/v1/fleet/me*'
+            }
+        }
+
+        It "Should connect with email and password when GET /version returns 403 and GET /me returns the user" {
+            Mock Invoke-WebRequest {
+                throw (New-ConnectHttpErrorRecord -StatusCode ([System.Net.HttpStatusCode]::Forbidden) -Message 'The remote server returned an error: (403) Forbidden.')
+            } -ParameterFilter { $Uri -like '*/api/v1/fleet/version*' } -ModuleName FleetDM-PowerShell
+
+            $password = ConvertTo-SecureString 'password' -AsPlainText -Force
+            $result = Connect-FleetDM -BaseUri $script:TestBaseUri -Email 'admin@example.com' -Password $password
+
+            $result.User | Should -Be 'test@example.com'
+            $null -eq $result.Version | Should -BeTrue
+
+            Should -Invoke Invoke-RestMethod -ModuleName FleetDM-PowerShell -Times 1 -Exactly -ParameterFilter {
+                $Uri -like '*/api/v1/fleet/login*' -and
+                $Method -eq 'POST' -and
+                ($Body | ConvertFrom-Json).email -eq 'admin@example.com'
+            }
+        }
+
+        It "Should connect when PowerShell 7 reports HTTP 403 from GET /version and GET /me returns the user" {
+            if (-not $script:CanUseHttpResponseException) {
+                Set-ItResult -Skipped -Because 'HttpResponseException is only available in PowerShell 7'
+            }
+
+            Mock Invoke-WebRequest {
+                throw (New-ConnectHttpResponseExceptionRecord -StatusCode ([System.Net.HttpStatusCode]::Forbidden))
+            } -ParameterFilter { $Uri -like '*/api/v1/fleet/version*' } -ModuleName FleetDM-PowerShell
+
+            $token = ConvertTo-SecureString $script:TestToken -AsPlainText -Force
+            $result = Connect-FleetDM -BaseUri $script:TestBaseUri -ApiToken $token
+
+            $result.User | Should -Be 'test@example.com'
+            $null -eq $result.Version | Should -BeTrue
+
+            Should -Invoke Invoke-RestMethod -ModuleName FleetDM-PowerShell -Times 1 -Exactly -ParameterFilter {
+                $Uri -like '*/api/v1/fleet/me*'
+            }
+        }
+
+        It "Should throw Authentication failed when PowerShell 7 reports HTTP 401 from GET /version" {
+            if (-not $script:CanUseHttpResponseException) {
+                Set-ItResult -Skipped -Because 'HttpResponseException is only available in PowerShell 7'
+            }
+
+            Mock Invoke-WebRequest {
+                throw (New-ConnectHttpResponseExceptionRecord -StatusCode ([System.Net.HttpStatusCode]::Unauthorized))
+            } -ParameterFilter { $Uri -like '*/api/v1/fleet/version*' } -ModuleName FleetDM-PowerShell
+
+            $token = ConvertTo-SecureString $script:TestToken -AsPlainText -Force
+
+            { Connect-FleetDM -BaseUri $script:TestBaseUri -ApiToken $token } |
+                Should -Throw '*Authentication failed*'
+
+            Should -Invoke Invoke-RestMethod -ModuleName FleetDM-PowerShell -Times 0 -Exactly -ParameterFilter {
+                $Uri -like '*/api/v1/fleet/me*'
+            }
+        }
+    }
+}
+
+Describe 'Get-FleetConnectStatusCode' -Tags @('Unit', 'Authentication') {
+    It 'reads an HttpStatusCode enum' {
+        InModuleScope FleetDM-PowerShell {
+            $response = [PSCustomObject]@{ StatusCode = [System.Net.HttpStatusCode]::Forbidden }
+            $exception = [System.Net.WebException]::new('Forbidden')
+            Add-Member -InputObject $exception -MemberType NoteProperty -Name 'Response' -Value $response -Force
+            $record = [System.Management.Automation.ErrorRecord]::new(
+                $exception,
+                'WebException',
+                [System.Management.Automation.ErrorCategory]::InvalidOperation,
+                $null
+            )
+
+            Get-FleetConnectStatusCode -ErrorRecord $record | Should -Be 403
+        }
+    }
+
+    It 'reads an integer status code' {
+        InModuleScope FleetDM-PowerShell {
+            $response = [PSCustomObject]@{ StatusCode = 403 }
+            $exception = [System.Net.WebException]::new('Forbidden')
+            Add-Member -InputObject $exception -MemberType NoteProperty -Name 'Response' -Value $response -Force
+            $record = [System.Management.Automation.ErrorRecord]::new(
+                $exception,
+                'WebException',
+                [System.Management.Automation.ErrorCategory]::InvalidOperation,
+                $null
+            )
+
+            Get-FleetConnectStatusCode -ErrorRecord $record | Should -Be 403
+        }
+    }
+
+    It 'reads the Forbidden status name' {
+        InModuleScope FleetDM-PowerShell {
+            $response = [PSCustomObject]@{ StatusCode = 'Forbidden' }
+            $exception = [System.Net.WebException]::new('Forbidden')
+            Add-Member -InputObject $exception -MemberType NoteProperty -Name 'Response' -Value $response -Force
+            $record = [System.Management.Automation.ErrorRecord]::new(
+                $exception,
+                'WebException',
+                [System.Management.Automation.ErrorCategory]::InvalidOperation,
+                $null
+            )
+
+            Get-FleetConnectStatusCode -ErrorRecord $record | Should -Be 403
+        }
+    }
+
+    It 'reads the status from an inner exception' {
+        InModuleScope FleetDM-PowerShell {
+            $response = [PSCustomObject]@{ StatusCode = [System.Net.HttpStatusCode]::Forbidden }
+            $inner = [System.Net.WebException]::new('Forbidden')
+            Add-Member -InputObject $inner -MemberType NoteProperty -Name 'Response' -Value $response -Force
+            $outer = [System.Exception]::new('wrapped', $inner)
+            $record = [System.Management.Automation.ErrorRecord]::new(
+                $outer,
+                'WebException',
+                [System.Management.Automation.ErrorCategory]::InvalidOperation,
+                $null
+            )
+
+            Get-FleetConnectStatusCode -ErrorRecord $record | Should -Be 403
+        }
+    }
+
+    It 'returns null for HttpRequestException' {
+        InModuleScope FleetDM-PowerShell {
+            $exception = [System.Net.Http.HttpRequestException]::new('The remote name could not be resolved')
+            $record = [System.Management.Automation.ErrorRecord]::new(
+                $exception,
+                'HttpRequestException',
+                [System.Management.Automation.ErrorCategory]::ConnectionError,
+                $null
+            )
+
+            $statusCode = Get-FleetConnectStatusCode -ErrorRecord $record
+            $null -eq $statusCode | Should -BeTrue
+        }
+    }
+
+    It 'returns null for TaskCanceledException' {
+        InModuleScope FleetDM-PowerShell {
+            $exception = [System.Threading.Tasks.TaskCanceledException]::new('The request was canceled due to the configured HttpClient.Timeout')
+            $record = [System.Management.Automation.ErrorRecord]::new(
+                $exception,
+                'TaskCanceledException',
+                [System.Management.Automation.ErrorCategory]::OperationTimeout,
+                $null
+            )
+
+            $statusCode = Get-FleetConnectStatusCode -ErrorRecord $record
+            $null -eq $statusCode | Should -BeTrue
+        }
+    }
+
+    It 'reads a PowerShell 7 HttpResponseException' {
+        if (-not $script:CanUseHttpResponseException) {
+            Set-ItResult -Skipped -Because 'HttpResponseException is only available in PowerShell 7'
+        }
+
+        $record = New-ConnectHttpResponseExceptionRecord -StatusCode ([System.Net.HttpStatusCode]::Forbidden)
+        InModuleScope FleetDM-PowerShell -ArgumentList $record {
+            param($ErrorRecord)
+            Get-FleetConnectStatusCode -ErrorRecord $ErrorRecord | Should -Be 403
         }
     }
 }
