@@ -169,48 +169,50 @@ function Invoke-FleetDMMethod {
             
             Write-Verbose "Request completed successfully"
             
-            # Try to add type information if we can identify the object type
+            # Try to add type information if we can identify the object type.
+            # Add-FleetTypeName mutates each object and also passes it through.
+            # Discard that output so callers receive only the envelope below.
             if (-not $Raw -and $result) {
                 # For collections, add type information to the nested data
                 if ($result.PSObject.Properties.Name -contains 'hosts') {
-                    $result.hosts | Add-FleetTypeName -TypeName 'FleetDM.Host'
+                    $null = $result.hosts | Add-FleetTypeName -TypeName 'FleetDM.Host'
                 }
                 elseif ($result.PSObject.Properties.Name -contains 'policies') {
-                    $result.policies | Add-FleetTypeName -TypeName 'FleetDM.Policy'
+                    $null = $result.policies | Add-FleetTypeName -TypeName 'FleetDM.Policy'
                 }
                 elseif ($result.PSObject.Properties.Name -contains 'queries') {
-                    $result.queries | Add-FleetTypeName -TypeName 'FleetDM.Query'
+                    $null = $result.queries | Add-FleetTypeName -TypeName 'FleetDM.Query'
                 }
                 elseif ($result.PSObject.Properties.Name -contains 'software') {
-                    $result.software | Add-FleetTypeName -TypeName 'FleetDM.Software'
+                    $null = $result.software | Add-FleetTypeName -TypeName 'FleetDM.Software'
                 }
                 elseif ($result.PSObject.Properties.Name -contains 'users') {
-                    $result.users | Add-FleetTypeName -TypeName 'FleetDM.User'
+                    $null = $result.users | Add-FleetTypeName -TypeName 'FleetDM.User'
                 }
                 elseif ($result.PSObject.Properties.Name -contains 'teams') {
-                    $result.teams | Add-FleetTypeName -TypeName 'FleetDM.Team'
+                    $null = $result.teams | Add-FleetTypeName -TypeName 'FleetDM.Team'
                 }
                 elseif ($result.PSObject.Properties.Name -contains 'labels') {
-                    $result.labels | Add-FleetTypeName -TypeName 'FleetDM.Label'
+                    $null = $result.labels | Add-FleetTypeName -TypeName 'FleetDM.Label'
                 }
                 # For single objects
                 elseif ($result.PSObject.Properties.Name -contains 'host') {
-                    $result.host | Add-FleetTypeName -TypeName 'FleetDM.Host'
+                    $null = $result.host | Add-FleetTypeName -TypeName 'FleetDM.Host'
                 }
                 elseif ($result.PSObject.Properties.Name -contains 'policy') {
-                    $result.policy | Add-FleetTypeName -TypeName 'FleetDM.Policy'
+                    $null = $result.policy | Add-FleetTypeName -TypeName 'FleetDM.Policy'
                 }
                 elseif ($result.PSObject.Properties.Name -contains 'query') {
-                    $result.query | Add-FleetTypeName -TypeName 'FleetDM.Query'
+                    $null = $result.query | Add-FleetTypeName -TypeName 'FleetDM.Query'
                 }
                 elseif ($result.PSObject.Properties.Name -contains 'user') {
-                    $result.user | Add-FleetTypeName -TypeName 'FleetDM.User'
+                    $null = $result.user | Add-FleetTypeName -TypeName 'FleetDM.User'
                 }
                 elseif ($result.PSObject.Properties.Name -contains 'team') {
-                    $result.team | Add-FleetTypeName -TypeName 'FleetDM.Team'
+                    $null = $result.team | Add-FleetTypeName -TypeName 'FleetDM.Team'
                 }
                 elseif ($result.PSObject.Properties.Name -contains 'label') {
-                    $result.label | Add-FleetTypeName -TypeName 'FleetDM.Label'
+                    $null = $result.label | Add-FleetTypeName -TypeName 'FleetDM.Label'
                 }
             }
             
