@@ -1706,6 +1706,18 @@ Connect-FleetDM -BaseUri "https://fleet.example.com" -Credential $cred</dev:code
           <dev:defaultValue>3</dev:defaultValue>
         </command:parameter>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+          <maml:name>MaxRetryDelaySeconds</maml:name>
+          <maml:description>
+            <maml:para>Longest wait before one retry, in seconds. The default is 120 when this is omitted. Retry-After and the backoff cannot sleep longer than this.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">Int32</command:parameterValue>
+          <dev:type>
+            <maml:name>Int32</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>120</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
           <maml:name>RetryNonIdempotent</maml:name>
           <maml:description>
             <maml:para>Also retry POST, PUT, PATCH, and DELETE after HTTP 502, 503, or 504. HTTP 429 is retried without this switch.</maml:para>
@@ -1813,6 +1825,18 @@ Connect-FleetDM -BaseUri "https://fleet.example.com" -Credential $cred</dev:code
           <maml:uri />
         </dev:type>
         <dev:defaultValue>3</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+        <maml:name>MaxRetryDelaySeconds</maml:name>
+        <maml:description>
+          <maml:para>Longest wait before one retry, in seconds. The default is 120 when this is omitted. Retry-After and the backoff cannot sleep longer than this.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="false">Int32</command:parameterValue>
+        <dev:type>
+          <maml:name>Int32</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>120</dev:defaultValue>
       </command:parameter>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
         <maml:name>RetryNonIdempotent</maml:name>

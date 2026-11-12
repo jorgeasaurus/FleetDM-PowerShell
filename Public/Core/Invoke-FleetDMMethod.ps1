@@ -26,7 +26,12 @@ function Invoke-FleetDMMethod {
         Maximum number of additional attempts after the first request. The default
         is 3 when this is omitted. HTTP 429 is retried for every method. HTTP 502,
         503, and 504 are retried for GET. Gateway retries wait 2, 4, then 8 seconds.
-        A 429 waits for Retry-After or for "retry after: Ns" in the error.
+        A 429, and a gateway response that sends one, waits for Retry-After or for
+        "retry after: Ns" in the error. Each wait is capped by -MaxRetryDelaySeconds.
+
+    .PARAMETER MaxRetryDelaySeconds
+        Longest wait before one retry, in seconds. The default is 120 when this
+        is omitted. Retry-After and the backoff cannot sleep longer than this.
 
     .PARAMETER RetryNonIdempotent
         Also retry POST, PUT, PATCH, and DELETE after HTTP 502, 503, or 504.
@@ -102,6 +107,10 @@ function Invoke-FleetDMMethod {
         [int]$MaxRetries = 3,
 
         [Parameter()]
+        [ValidateRange(1, 2147483)]
+        [int]$MaxRetryDelaySeconds = 120,
+
+        [Parameter()]
         [switch]$RetryNonIdempotent,
         
         [Parameter()]
@@ -141,6 +150,10 @@ function Invoke-FleetDMMethod {
         # defaults, and callers that mock it declare a fixed parameter list.
         if ($PSBoundParameters.ContainsKey('MaxRetries')) {
             $requestParams['MaxRetries'] = $MaxRetries
+        }
+
+        if ($PSBoundParameters.ContainsKey('MaxRetryDelaySeconds')) {
+            $requestParams['MaxRetryDelaySeconds'] = $MaxRetryDelaySeconds
         }
 
         if ($RetryNonIdempotent) {

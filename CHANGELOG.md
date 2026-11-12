@@ -4,7 +4,7 @@
 
 ### Added
 
-- Requests retry HTTP 429 for every method and HTTP 502, 503, and 504 for GET. `-MaxRetries` defaults to 3 extra attempts. A 429 waits for the `Retry-After` header or `retry after: Ns` in the error. Gateway retries wait 2, 4, then 8 seconds. `-RetryNonIdempotent` also retries POST, PUT, PATCH, and DELETE after a gateway error. `Invoke-FleetDMMethod` forwards both parameters. Each retry writes a verbose line, and the last error is thrown when the attempts are used up.
+- Requests retry HTTP 429 for every method and HTTP 502, 503, and 504 for GET. `-MaxRetries` defaults to 3 extra attempts. A 429, and a gateway response that includes one, waits for the `Retry-After` header (an integer or an HTTP-date) or `retry after: Ns` in the error. Gateway retries otherwise wait 2, 4, then 8 seconds. `-MaxRetryDelaySeconds` defaults to 120 and caps every wait, including a huge `Retry-After`. A wait below 1 second uses the backoff. `-RetryNonIdempotent` also retries POST, PUT, PATCH, and DELETE after a gateway error. `Invoke-FleetDMMethod` forwards these parameters when the caller sets them. Each retry writes a verbose line, and the last error is thrown when the attempts are used up.
 
 ### Fixed
 

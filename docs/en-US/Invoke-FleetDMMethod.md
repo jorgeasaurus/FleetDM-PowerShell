@@ -14,8 +14,9 @@ Invokes a custom FleetDM API method
 
 ```
 Invoke-FleetDMMethod [-Endpoint] <String> [[-Method] <String>] [[-Body] <Hashtable>]
- [[-QueryParameters] <Hashtable>] [-FollowPagination] [-MaxRetries <Int32>] [-RetryNonIdempotent]
- [-Raw] [-ProgressAction <ActionPreference>] [<CommonParameters>]
+ [[-QueryParameters] <Hashtable>] [-FollowPagination] [-MaxRetries <Int32>]
+ [-MaxRetryDelaySeconds <Int32>] [-RetryNonIdempotent] [-Raw] [-ProgressAction <ActionPreference>]
+ [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -165,6 +166,21 @@ Aliases:
 Required: False
 Position: Named
 Default value: 3
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -MaxRetryDelaySeconds
+Longest wait before one retry, in seconds. The default is 120 when this is omitted. Retry-After and the backoff cannot sleep longer than this.
+
+```yaml
+Type: Int32
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: 120
 Accept pipeline input: False
 Accept wildcard characters: False
 ```

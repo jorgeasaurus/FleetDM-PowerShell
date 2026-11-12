@@ -260,9 +260,9 @@ Invoke-FleetQuery -Query "SELECT * FROM system_info;" -HostId $hostIds
 
 The module retries a failed request before it throws:
 
-- **HTTP 429** is retried for every method. The wait is the `Retry-After` header when Fleet sends one, otherwise `retry after: Ns` in the error. If neither is present, the wait is 2 seconds, then 4, then 8.
-- **HTTP 502, 503, and 504** are retried for GET, with that same 2, 4, and 8 second backoff. POST, PUT, PATCH, and DELETE are not retried, so a software install or other change is not sent twice.
-- The default is **3** extra attempts (`-MaxRetries`). `-Verbose` writes one line per retry. The last error is thrown after that. Pass `-MaxRetries 0` to `Invoke-FleetDMMethod` to disable retries for one call. Pass `-RetryNonIdempotent` only when repeating a POST, PUT, PATCH, or DELETE is safe.
+- **HTTP 429** is retried for every method. The wait is the `Retry-After` header when Fleet sends one (a number of seconds or an HTTP-date), otherwise `retry after: Ns` in the error. If neither is present, or the value is below 1 second, the wait is 2 seconds, then 4, then 8.
+- **HTTP 502, 503, and 504** are retried for GET. A `Retry-After` on those responses is used. Otherwise the wait is the same 2, 4, and 8 second backoff. POST, PUT, PATCH, and DELETE are not retried, so a software install or other change is not sent twice.
+- The default is **3** extra attempts (`-MaxRetries`). Every wait is capped at **120** seconds (`-MaxRetryDelaySeconds`). `-Verbose` writes one line per retry. The last error is thrown after that. Pass `-MaxRetries 0` to `Invoke-FleetDMMethod` to disable retries for one call. Pass `-RetryNonIdempotent` only when repeating a POST, PUT, PATCH, or DELETE is safe.
 
 ```powershell
 try {

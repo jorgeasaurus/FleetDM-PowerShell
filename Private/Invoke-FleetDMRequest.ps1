@@ -33,7 +33,7 @@ function Get-FleetRedactedUriText {
 
     return [regex]::Replace(
         $Text,
-        '(?i)([?&](?:current_password|new_password|api_token|authorization|password|token|secret)=)[^&\s#"]*',
+        '(?i)([?&](?:current_password|new_password|enroll_secret|api_token|access_token|authorization|password|token|node_key|secret)=)[^&\s#"]*',
         '${1}[REDACTED]'
     )
 }
@@ -256,20 +256,144 @@ function Get-FleetHttpStatusCode {
     }
 }
 
+function ConvertTo-FleetRetryDelaySeconds {
+    <#
+    .SYNOPSIS
+        Clamps a numeric retry delay into the allowed range.
+
+    .DESCRIPTION
+        Values below 1 second are not a usable wait. Callers then use the
+        backoff. Values above the maximum, including values that do not fit in
+        an Int32, become the maximum. This function does not throw.
+    #>
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [object]$Seconds,
+
+        [Parameter(Mandatory)]
+        [int]$Maximum
+    )
+
+    if ($null -eq $Seconds -or $Maximum -lt 1) {
+        return $null
+    }
+
+    $value = 0.0
+    try {
+        $value = [double]$Seconds
+    }
+    catch {
+        return $null
+    }
+
+    if ([double]::IsNaN($value) -or [double]::IsNegativeInfinity($value) -or $value -lt 1) {
+        return $null
+    }
+
+    if ([double]::IsPositiveInfinity($value) -or $value -ge $Maximum) {
+        return $Maximum
+    }
+
+    return [int][Math]::Ceiling($value)
+}
+
+function ConvertFrom-FleetRetryAfterText {
+    <#
+    .SYNOPSIS
+        Parses a Retry-After header or Fleet retry-after number.
+
+    .DESCRIPTION
+        Recognizes an integer number of seconds or an HTTP-date. A recognized
+        value below 1 second, including a past date, is returned as an unusable
+        delay so the caller can use the backoff. Unrecognized text is not a delay.
+    #>
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [string]$Text,
+
+        [Parameter(Mandatory)]
+        [int]$Maximum
+    )
+
+    $unrecognized = [PSCustomObject]@{ Recognized = $false; Delay = $null }
+    if ([string]::IsNullOrWhiteSpace($Text)) {
+        return $unrecognized
+    }
+
+    $trimmed = $Text.Trim()
+    $whole = [long]0
+    $culture = [System.Globalization.CultureInfo]::InvariantCulture
+    $parsedNumber = $false
+    try {
+        $parsedNumber = [long]::TryParse($trimmed, [System.Globalization.NumberStyles]::Integer, $culture, [ref]$whole)
+    }
+    catch {
+        $parsedNumber = $false
+    }
+
+    if ($parsedNumber) {
+        return [PSCustomObject]@{
+            Recognized = $true
+            Delay = (ConvertTo-FleetRetryDelaySeconds -Seconds $whole -Maximum $Maximum)
+        }
+    }
+
+    if ($trimmed -match '^\d+$') {
+        return [PSCustomObject]@{ Recognized = $true; Delay = $(if ($Maximum -lt 1) { $null } else { $Maximum }) }
+    }
+
+    $parsedDate = [datetime]::MinValue
+    $styles = [System.Globalization.DateTimeStyles]::AssumeUniversal -bor [System.Globalization.DateTimeStyles]::AdjustToUniversal
+    $formats = [string[]]@(
+        'ddd, dd MMM yyyy HH:mm:ss GMT',
+        'dddd, dd-MMM-yy HH:mm:ss GMT',
+        'ddd MMM d HH:mm:ss yyyy'
+    )
+    $parsed = $false
+    try {
+        $parsed = [datetime]::TryParseExact($trimmed, $formats, $culture, $styles, [ref]$parsedDate)
+    }
+    catch {
+        return $unrecognized
+    }
+
+    if (-not $parsed) {
+        return $unrecognized
+    }
+
+    $remaining = ($parsedDate.ToUniversalTime() - [datetime]::UtcNow).TotalSeconds
+    return [PSCustomObject]@{
+        Recognized = $true
+        Delay = (ConvertTo-FleetRetryDelaySeconds -Seconds $remaining -Maximum $Maximum)
+    }
+}
+
 function Get-FleetRetryAfterSeconds {
     <#
     .SYNOPSIS
-        Reads a 429 delay from Retry-After or the Fleet error text.
+        Reads a retry delay from Retry-After or the Fleet error text.
 
     .DESCRIPTION
         The header wins when both are present. An integer Retry-After is seconds.
-        On PowerShell 7 the same header is a delta or an HTTP date. Fleet's
-        message looks like "retry after: 30s".
+        An HTTP-date is seconds from now, including the string form Windows
+        PowerShell 5.1 stores on WebHeaderCollection. PowerShell 7 may expose
+        the same header as a delta or a date. Fleet's message looks like
+        "retry after: 30s". The result is capped at MaximumSeconds. A value
+        below 1 second returns $null so the caller can use the backoff.
+        Pass ResponseBody when the stream was already read.
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [System.Management.Automation.ErrorRecord]$ErrorRecord
+        [System.Management.Automation.ErrorRecord]$ErrorRecord,
+
+        [AllowNull()]
+        [string]$ResponseBody,
+
+        [ValidateRange(1, 2147483)]
+        [int]$MaximumSeconds = 120
     )
 
     $response = $ErrorRecord.Exception.Response
@@ -286,33 +410,46 @@ function Get-FleetRetryAfterSeconds {
         }
         else {
             $retryAfterProperty = $headers.PSObject.Properties['RetryAfter']
-            if ($retryAfterProperty -and $retryAfterProperty.Value) {
+            if ($retryAfterProperty -and $null -ne $retryAfterProperty.Value) {
                 $retryAfter = $retryAfterProperty.Value
+                $deltaSeconds = $null
                 if ($null -ne $retryAfter.Delta) {
-                    $deltaSeconds = [int][Math]::Ceiling($retryAfter.Delta.TotalSeconds)
-                    if ($deltaSeconds -lt 0) {
-                        return 0
+                    try {
+                        $deltaSeconds = [double]$retryAfter.Delta.TotalSeconds
                     }
-                    return $deltaSeconds
+                    catch {
+                        $deltaSeconds = $null
+                    }
+                }
+
+                if ($null -ne $deltaSeconds) {
+                    return ConvertTo-FleetRetryDelaySeconds -Seconds $deltaSeconds -Maximum $MaximumSeconds
                 }
 
                 if ($null -ne $retryAfter.Date) {
                     $dateValue = $retryAfter.Date
-                    if ($dateValue -is [datetimeoffset]) {
-                        $remaining = ($dateValue.UtcDateTime - [datetime]::UtcNow).TotalSeconds
+                    $remaining = $null
+                    try {
+                        if ($dateValue -is [datetimeoffset]) {
+                            $remaining = ($dateValue.UtcDateTime - [datetime]::UtcNow).TotalSeconds
+                        }
+                        else {
+                            $remaining = ($dateValue.ToUniversalTime() - [datetime]::UtcNow).TotalSeconds
+                        }
                     }
-                    else {
-                        $remaining = ($dateValue.ToUniversalTime() - [datetime]::UtcNow).TotalSeconds
+                    catch {
+                        $remaining = $null
                     }
-                    if ($remaining -lt 0) {
-                        return 0
+
+                    if ($null -ne $remaining) {
+                        return ConvertTo-FleetRetryDelaySeconds -Seconds $remaining -Maximum $MaximumSeconds
                     }
-                    return [int][Math]::Ceiling($remaining)
                 }
 
                 $headerText = [string]$retryAfter
             }
             else {
+                # WebHeaderCollection on Windows PowerShell 5.1 is a string map.
                 try {
                     $raw = @($headers['Retry-After']) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -First 1
                     if ($raw) {
@@ -327,12 +464,9 @@ function Get-FleetRetryAfterSeconds {
     }
 
     if (-not [string]::IsNullOrWhiteSpace($headerText)) {
-        $parsedHeader = 0
-        if ([int]::TryParse($headerText.Trim(), [ref]$parsedHeader)) {
-            if ($parsedHeader -lt 0) {
-                return 0
-            }
-            return $parsedHeader
+        $parsedHeader = ConvertFrom-FleetRetryAfterText -Text $headerText -Maximum $MaximumSeconds
+        if ($parsedHeader.Recognized) {
+            return $parsedHeader.Delay
         }
     }
 
@@ -341,14 +475,30 @@ function Get-FleetRetryAfterSeconds {
         $statusDescription = $response.StatusDescription
     }
 
+    if ($PSBoundParameters.ContainsKey('ResponseBody')) {
+        $bodyText = $ResponseBody
+    }
+    else {
+        try {
+            $bodyText = Get-FleetHttpErrorBody -ErrorRecord $ErrorRecord
+        }
+        catch {
+            Write-Debug 'Retry-After body was not readable.'
+            $bodyText = $null
+        }
+    }
+
     $text = @(
         $ErrorRecord.Exception.Message
-        (Get-FleetHttpErrorBody -ErrorRecord $ErrorRecord)
+        $bodyText
         $statusDescription
     ) -join "`n"
 
     if ($text -match 'retry after:\s*(\d+)\s*s') {
-        return [int]$Matches[1]
+        $parsedBody = ConvertFrom-FleetRetryAfterText -Text $Matches[1] -Maximum $MaximumSeconds
+        if ($parsedBody.Recognized) {
+            return $parsedBody.Delay
+        }
     }
 
     return $null
@@ -431,13 +581,18 @@ function Invoke-FleetRestRequest {
         [ValidateRange(0, 100)]
         [int]$MaxRetries,
 
+        [Parameter(Mandatory)]
+        [ValidateRange(1, 2147483)]
+        [int]$MaxRetryDelaySeconds,
+
         [switch]$RetryNonIdempotent
     )
 
     for ($attempt = 0; $attempt -le $MaxRetries; $attempt++) {
         try {
             $response = Invoke-RestMethod @RequestParams
-            return $response
+            # Keep a one-element or empty array intact for the caller.
+            return , $response
         }
         catch {
             $statusCode = Get-FleetHttpStatusCode -ErrorRecord $_
@@ -448,15 +603,22 @@ function Invoke-FleetRestRequest {
 
             $retryNumber = $attempt + 1
             $retryAfter = $null
-            if ($statusCode -eq 429) {
-                $retryAfter = Get-FleetRetryAfterSeconds -ErrorRecord $_
+            try {
+                $retryAfter = Get-FleetRetryAfterSeconds -ErrorRecord $_ -MaximumSeconds $MaxRetryDelaySeconds
+            }
+            catch {
+                Write-Debug "Retry-After could not be read: $_"
+                $retryAfter = $null
             }
 
-            if ($null -ne $retryAfter) {
-                $delay = $retryAfter
+            if ($null -eq $retryAfter) {
+                $delay = ConvertTo-FleetRetryDelaySeconds -Seconds ([Math]::Pow(2, $retryNumber)) -Maximum $MaxRetryDelaySeconds
+                if ($null -eq $delay) {
+                    $delay = 1
+                }
             }
             else {
-                $delay = [int][Math]::Pow(2, $retryNumber)
+                $delay = $retryAfter
             }
 
             $target = Get-FleetRedactedUriText -Text ([string]$RequestParams['Uri'])
@@ -494,8 +656,15 @@ function Invoke-FleetDMRequest {
         Maximum number of additional attempts after the first request. The default
         is 3. HTTP 429 is retried for every method. A 429 waits for the Retry-After
         header or for "retry after: Ns" in the error, and otherwise waits 2, 4, then
-        8 seconds. HTTP 502, 503, and 504 use that same backoff and are retried for
-        GET only. Set this to 0 to disable retries.
+        8 seconds.         HTTP 502, 503, and 504 use that same backoff and are retried for
+        GET only. A Retry-After on those responses is used instead of the backoff.
+        Set this to 0 to disable retries.
+
+    .PARAMETER MaxRetryDelaySeconds
+        Longest wait before one retry, in seconds. The default is 120.
+        Retry-After and the backoff are capped here, so a large header cannot
+        sleep for a day or overflow the timer. A wait below 1 second, including
+        a past HTTP-date, uses the backoff. The largest accepted value is 2147483.
 
     .PARAMETER RetryNonIdempotent
         Also retry POST, PUT, PATCH, and DELETE after HTTP 502, 503, or 504.
@@ -519,6 +688,9 @@ function Invoke-FleetDMRequest {
 
         [ValidateRange(0, 100)]
         [int]$MaxRetries = 3,
+
+        [ValidateRange(1, 2147483)]
+        [int]$MaxRetryDelaySeconds = 120,
 
         [switch]$RetryNonIdempotent
     )
@@ -589,7 +761,7 @@ function Invoke-FleetDMRequest {
 
                     Write-Verbose "Fetching page $page"
 
-                    $response = Invoke-FleetRestRequest -RequestParams $requestParams -Method $Method -MaxRetries $MaxRetries -RetryNonIdempotent:$RetryNonIdempotent
+                    $response = Invoke-FleetRestRequest -RequestParams $requestParams -Method $Method -MaxRetries $MaxRetries -MaxRetryDelaySeconds $MaxRetryDelaySeconds -RetryNonIdempotent:$RetryNonIdempotent
                     $pageData = Get-FleetPaginatedData -Response $response -ReturnMetadata
                     $pageItems = @($pageData.Data | Where-Object { $null -ne $_ })
 
@@ -646,7 +818,7 @@ function Invoke-FleetDMRequest {
             else {
                 Write-Verbose "No pagination requested. Sending single request."
                 # Single request without pagination
-                $response = Invoke-FleetRestRequest -RequestParams $requestParams -Method $Method -MaxRetries $MaxRetries -RetryNonIdempotent:$RetryNonIdempotent
+                $response = Invoke-FleetRestRequest -RequestParams $requestParams -Method $Method -MaxRetries $MaxRetries -MaxRetryDelaySeconds $MaxRetryDelaySeconds -RetryNonIdempotent:$RetryNonIdempotent
                 
                 Write-Verbose "Request completed successfully"
                 
@@ -655,7 +827,7 @@ function Invoke-FleetDMRequest {
         }
         catch {
             # Handle errors
-            Resolve-FleetDMApiError -ErrorRecord $_
+            Resolve-FleetDMApiError -ErrorRecord $_ -MaxRetryDelaySeconds $MaxRetryDelaySeconds
         }
     }
 }
@@ -670,11 +842,17 @@ function Resolve-FleetDMApiError {
     
     .PARAMETER ErrorRecord
         The error record from the failed API call
+
+    .PARAMETER MaxRetryDelaySeconds
+        Cap used when the final 429 message reports how long to wait.
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [System.Management.Automation.ErrorRecord]$ErrorRecord
+        [System.Management.Automation.ErrorRecord]$ErrorRecord,
+
+        [ValidateRange(1, 2147483)]
+        [int]$MaxRetryDelaySeconds = 120
     )
     
     $exception = $ErrorRecord.Exception
@@ -761,7 +939,9 @@ function Resolve-FleetDMApiError {
             }
             429 {
                 # Rate limiting. Retries already waited. This is the last failure.
-                $retryAfter = Get-FleetRetryAfterSeconds -ErrorRecord $ErrorRecord
+                # The body was read above. Pass it through so a 5.1 response
+                # stream is not read a second time.
+                $retryAfter = Get-FleetRetryAfterSeconds -ErrorRecord $ErrorRecord -ResponseBody $responseBody -MaximumSeconds $MaxRetryDelaySeconds
                 
                 if ($null -ne $retryAfter) {
                     Write-Warning "Rate limit exceeded. Please wait $retryAfter seconds before retrying."
