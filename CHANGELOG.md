@@ -5,6 +5,7 @@
 ### Fixed
 
 - `Get-FleetTeam` returns fleets when Fleet sends the same list under both `teams` and `fleets`. An empty or null legacy key no longer hides the records, and the two keys are not concatenated.
+- `Connect-FleetDM` connects when a token can call `GET /api/v1/fleet/me` but `GET /api/v1/fleet/version` returns 403. The stored version is `$null`. `-SkipVersionCheck` skips the version call. HTTP 401 is still `Authentication failed`. Other cmdlets do not read the stored version.
 
 ## 2.2.0
 

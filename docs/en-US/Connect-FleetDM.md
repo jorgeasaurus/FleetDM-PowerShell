@@ -14,25 +14,31 @@ Establishes a connection to the FleetDM API
 
 ### Token (Default)
 ```
-Connect-FleetDM -BaseUri <String> -ApiToken <SecureString> [-ProgressAction <ActionPreference>]
+Connect-FleetDM -BaseUri <String> -ApiToken <SecureString> [-SkipVersionCheck] [-ProgressAction <ActionPreference>]
  [<CommonParameters>]
 ```
 
 ### Credential
 ```
-Connect-FleetDM -BaseUri <String> -Credential <PSCredential> [-ProgressAction <ActionPreference>]
+Connect-FleetDM -BaseUri <String> -Credential <PSCredential> [-SkipVersionCheck] [-ProgressAction <ActionPreference>]
  [<CommonParameters>]
 ```
 
 ### Email
 ```
-Connect-FleetDM -BaseUri <String> -Email <String> -Password <SecureString> [-ProgressAction <ActionPreference>]
+Connect-FleetDM -BaseUri <String> -Email <String> -Password <SecureString> [-SkipVersionCheck] [-ProgressAction <ActionPreference>]
  [<CommonParameters>]
 ```
 
 ## DESCRIPTION
 Connects to a FleetDM instance using either an API token or email/password credentials.
 The connection is stored at the module level and used by all other FleetDM cmdlets.
+
+The token is checked with GET /api/v1/fleet/version, then GET /api/v1/fleet/me.
+An API-only user can be limited to specific endpoints. If /version returns 403 and
+/me succeeds, the connection is stored with Version set to $null. HTTP 401 is an
+authentication failure. Other FleetDM cmdlets do not read the stored version.
+Use -SkipVersionCheck to skip /version and require a successful /me call.
 
 ## EXAMPLES
 
@@ -66,6 +72,15 @@ Connect-FleetDM -BaseUri "https://fleet.example.com" -Email "admin@example.com" 
 ```
 
 Logs in with email and password, the same call as fleetctl login --email --password
+
+### EXAMPLE 5
+```
+$token = ConvertTo-SecureString "your-api-token" -AsPlainText -Force
+Connect-FleetDM -BaseUri "https://fleet.example.com" -ApiToken $token -SkipVersionCheck
+```
+
+Connects when the token can call /me but is not allowed to call /version.
+The connection version is $null.
 
 ## PARAMETERS
 
@@ -142,6 +157,23 @@ Aliases:
 Required: True
 Position: Named
 Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -SkipVersionCheck
+Do not call GET /api/v1/fleet/version. The token is checked with GET /api/v1/fleet/me,
+and the stored version is $null. Use this when an API-only user is not allowed to call
+the version endpoint.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```

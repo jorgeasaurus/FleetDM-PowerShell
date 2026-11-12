@@ -284,6 +284,11 @@ The most secure method is using API tokens:
 # Store token securely
 $token = Read-Host "Enter API Token" -AsSecureString
 Connect-FleetDM -BaseUri "https://fleet.example.com" -ApiToken $token
+
+# An API-only user can be limited to specific endpoints. A token that can call
+# GET /api/v1/fleet/me still connects when GET /api/v1/fleet/version returns 403.
+# The connection version is null. -SkipVersionCheck skips the version call.
+Connect-FleetDM -BaseUri "https://fleet.example.com" -ApiToken $token -SkipVersionCheck
 ```
 
 ### Username/Password
@@ -436,6 +441,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **PowerShell Gallery**: [FleetDM-PowerShell](https://www.powershellgallery.com/packages/FleetDM-PowerShell)
 
 ## Version History
+
+### 2.2.1
+
+- `Connect-FleetDM` connects when an API-only token can call `GET /api/v1/fleet/me` but `GET /api/v1/fleet/version` returns 403. The stored version is null. `-SkipVersionCheck` skips the version call.
 
 ### 2.2.0 - Premium cmdlets and API fixes
 
