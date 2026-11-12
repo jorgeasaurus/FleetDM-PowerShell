@@ -5,7 +5,7 @@ title: FleetDM-PowerShell
 
 # FleetDM-PowerShell
 
-<p class="lead">The module calls the Fleet REST API from Windows PowerShell 5.1 and PowerShell 7. Version 2.3.0 retries HTTP 429 and gateway errors, and connects an API-only token when GET /version returns 403. Version 2.2.0 adds Fleet Premium cmdlets, host wipe, and secret redaction in verbose logs.</p>
+<p class="lead">The module calls the Fleet REST API from Windows PowerShell 5.1 and PowerShell 7. Version 2.3.1 returns one object from Invoke-FleetDMMethod when it adds type names. Version 2.3.0 retries HTTP 429 and gateway errors, and connects an API-only token when GET /version returns 403. Version 2.2.0 adds Fleet Premium cmdlets, host wipe, and secret redaction in verbose logs.</p>
 
 <div class="callouts">
 <div class="callout" markdown="1">

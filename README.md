@@ -452,6 +452,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Version History
 
+### 2.3.1
+
+- `Invoke-FleetDMMethod` returns the response envelope once. Nested objects still receive their `FleetDM.*` type names, and they are no longer written to the pipeline ahead of the envelope.
+
 ### 2.3.0
 
 - `Connect-FleetDM` connects when an API-only token can call `GET /api/v1/fleet/me` but `GET /api/v1/fleet/version` returns 403. The stored version is null. `-SkipVersionCheck` skips the version call.

@@ -1,6 +1,6 @@
 @{
     RootModule = 'FleetDM-PowerShell.psm1'
-    ModuleVersion = '2.3.0'
+    ModuleVersion = '2.3.1'
     GUID = 'a7c4b8f3-2d1e-4f5a-9c8b-1e3d5a7f9b2c'
     Author = 'Jorge Suarez'
     CompanyName = 'Jorgeasaurus'
@@ -68,7 +68,7 @@
             LicenseUri = 'https://github.com/Jorgeasaurus/FleetDM-PowerShell/blob/main/LICENSE'
             ProjectUri = 'https://github.com/Jorgeasaurus/FleetDM-PowerShell'
             IconUri = ''
-            ReleaseNotes = 'Version 2.3.0 - Connect-FleetDM accepts an API-only token when GET /version returns 403, and requests retry HTTP 429 and gateway errors. Fixes #7 and #8.'
+            ReleaseNotes = 'Version 2.3.1 - Invoke-FleetDMMethod returns the response envelope once when it adds type names. Nested objects are no longer written to the pipeline. Fixes #11.'
             Prerelease = ''
             RequireLicenseAcceptance = $false
             ExternalModuleDependencies = @()
