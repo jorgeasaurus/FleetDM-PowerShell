@@ -232,6 +232,240 @@ function Get-FleetRedactedLogText {
     return [regex]::Replace($redacted, '(?i)\bBearer\s+[^\s"\\}]+', 'Bearer [REDACTED]')
 }
 
+function Get-FleetHttpStatusCode {
+    <#
+    .SYNOPSIS
+        Reads an HTTP status code from a failed Fleet request.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [System.Management.Automation.ErrorRecord]$ErrorRecord
+    )
+
+    $response = $ErrorRecord.Exception.Response
+    if (-not $response -or $null -eq $response.StatusCode) {
+        return $null
+    }
+
+    try {
+        return [int]$response.StatusCode
+    }
+    catch {
+        return $null
+    }
+}
+
+function Get-FleetRetryAfterSeconds {
+    <#
+    .SYNOPSIS
+        Reads a 429 delay from Retry-After or the Fleet error text.
+
+    .DESCRIPTION
+        The header wins when both are present. An integer Retry-After is seconds.
+        On PowerShell 7 the same header is a delta or an HTTP date. Fleet's
+        message looks like "retry after: 30s".
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [System.Management.Automation.ErrorRecord]$ErrorRecord
+    )
+
+    $response = $ErrorRecord.Exception.Response
+    $headerText = $null
+    if ($response -and $response.Headers) {
+        $headers = $response.Headers
+        if ($headers -is [System.Collections.IDictionary]) {
+            foreach ($key in @($headers.Keys)) {
+                if ([string]$key -eq 'Retry-After') {
+                    $headerText = [string]$headers[$key]
+                    break
+                }
+            }
+        }
+        else {
+            $retryAfterProperty = $headers.PSObject.Properties['RetryAfter']
+            if ($retryAfterProperty -and $retryAfterProperty.Value) {
+                $retryAfter = $retryAfterProperty.Value
+                if ($null -ne $retryAfter.Delta) {
+                    $deltaSeconds = [int][Math]::Ceiling($retryAfter.Delta.TotalSeconds)
+                    if ($deltaSeconds -lt 0) {
+                        return 0
+                    }
+                    return $deltaSeconds
+                }
+
+                if ($null -ne $retryAfter.Date) {
+                    $dateValue = $retryAfter.Date
+                    if ($dateValue -is [datetimeoffset]) {
+                        $remaining = ($dateValue.UtcDateTime - [datetime]::UtcNow).TotalSeconds
+                    }
+                    else {
+                        $remaining = ($dateValue.ToUniversalTime() - [datetime]::UtcNow).TotalSeconds
+                    }
+                    if ($remaining -lt 0) {
+                        return 0
+                    }
+                    return [int][Math]::Ceiling($remaining)
+                }
+
+                $headerText = [string]$retryAfter
+            }
+            else {
+                try {
+                    $raw = @($headers['Retry-After']) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -First 1
+                    if ($raw) {
+                        $headerText = [string]$raw
+                    }
+                }
+                catch {
+                    Write-Debug 'Retry-After header was not readable.'
+                }
+            }
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($headerText)) {
+        $parsedHeader = 0
+        if ([int]::TryParse($headerText.Trim(), [ref]$parsedHeader)) {
+            if ($parsedHeader -lt 0) {
+                return 0
+            }
+            return $parsedHeader
+        }
+    }
+
+    $statusDescription = $null
+    if ($response) {
+        $statusDescription = $response.StatusDescription
+    }
+
+    $text = @(
+        $ErrorRecord.Exception.Message
+        (Get-FleetHttpErrorBody -ErrorRecord $ErrorRecord)
+        $statusDescription
+    ) -join "`n"
+
+    if ($text -match 'retry after:\s*(\d+)\s*s') {
+        return [int]$Matches[1]
+    }
+
+    return $null
+}
+
+function Test-FleetStatusRetry {
+    <#
+    .SYNOPSIS
+        Returns whether this HTTP status can be sent again.
+    #>
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [object]$StatusCode,
+
+        [Parameter(Mandatory)]
+        [string]$Method,
+
+        [switch]$RetryNonIdempotent
+    )
+
+    if ($null -eq $StatusCode) {
+        return $false
+    }
+
+    $code = [int]$StatusCode
+    if ($code -eq 429) {
+        return $true
+    }
+
+    if ($code -in 502, 503, 504) {
+        if ($Method -eq 'GET' -or $RetryNonIdempotent) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+function Wait-FleetRequestRetry {
+    <#
+    .SYNOPSIS
+        Waits before another Fleet request.
+
+    .DESCRIPTION
+        Tests mock this function so backoff does not sleep.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateRange(0, [int]::MaxValue)]
+        [int]$Seconds
+    )
+
+    if ($Seconds -gt 0) {
+        Start-Sleep -Seconds $Seconds
+    }
+}
+
+function Invoke-FleetRestRequest {
+    <#
+    .SYNOPSIS
+        Sends one Fleet HTTP call and retries selected failures.
+
+    .DESCRIPTION
+        HTTP 429 is retried for every method. The wait is Retry-After when Fleet
+        sends it, otherwise 2, 4, then 8 seconds. HTTP 502, 503, and 504 are
+        retried for GET. RetryNonIdempotent also retries the other methods.
+        The original error is rethrown after the last attempt.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$RequestParams,
+
+        [Parameter(Mandatory)]
+        [string]$Method,
+
+        [Parameter(Mandatory)]
+        [ValidateRange(0, 100)]
+        [int]$MaxRetries,
+
+        [switch]$RetryNonIdempotent
+    )
+
+    for ($attempt = 0; $attempt -le $MaxRetries; $attempt++) {
+        try {
+            $response = Invoke-RestMethod @RequestParams
+            return $response
+        }
+        catch {
+            $statusCode = Get-FleetHttpStatusCode -ErrorRecord $_
+            $canRetry = $attempt -lt $MaxRetries -and (Test-FleetStatusRetry -StatusCode $statusCode -Method $Method -RetryNonIdempotent:$RetryNonIdempotent)
+            if (-not $canRetry) {
+                throw
+            }
+
+            $retryNumber = $attempt + 1
+            $retryAfter = $null
+            if ($statusCode -eq 429) {
+                $retryAfter = Get-FleetRetryAfterSeconds -ErrorRecord $_
+            }
+
+            if ($null -ne $retryAfter) {
+                $delay = $retryAfter
+            }
+            else {
+                $delay = [int][Math]::Pow(2, $retryNumber)
+            }
+
+            $target = Get-FleetRedactedUriText -Text ([string]$RequestParams['Uri'])
+            Write-Verbose "Retrying $Method $target after HTTP $statusCode in $delay seconds (retry $retryNumber of $MaxRetries)."
+            Wait-FleetRequestRetry -Seconds $delay
+        }
+    }
+}
+
 function Invoke-FleetDMRequest {
     <#
     .SYNOPSIS
@@ -255,6 +489,18 @@ function Invoke-FleetDMRequest {
     
     .PARAMETER FollowPagination
         If specified, automatically follows pagination to retrieve all results
+
+    .PARAMETER MaxRetries
+        Maximum number of additional attempts after the first request. The default
+        is 3. HTTP 429 is retried for every method. A 429 waits for the Retry-After
+        header or for "retry after: Ns" in the error, and otherwise waits 2, 4, then
+        8 seconds. HTTP 502, 503, and 504 use that same backoff and are retried for
+        GET only. Set this to 0 to disable retries.
+
+    .PARAMETER RetryNonIdempotent
+        Also retry POST, PUT, PATCH, and DELETE after HTTP 502, 503, or 504.
+        HTTP 429 is retried without this switch. Leave it off when repeating the
+        request could install software or change a resource twice.
     #>
     [CmdletBinding()]
     param(
@@ -269,7 +515,12 @@ function Invoke-FleetDMRequest {
         
         [hashtable]$QueryParameters,
         
-        [switch]$FollowPagination
+        [switch]$FollowPagination,
+
+        [ValidateRange(0, 100)]
+        [int]$MaxRetries = 3,
+
+        [switch]$RetryNonIdempotent
     )
     
     begin {
@@ -338,7 +589,7 @@ function Invoke-FleetDMRequest {
 
                     Write-Verbose "Fetching page $page"
 
-                    $response = Invoke-RestMethod @requestParams
+                    $response = Invoke-FleetRestRequest -RequestParams $requestParams -Method $Method -MaxRetries $MaxRetries -RetryNonIdempotent:$RetryNonIdempotent
                     $pageData = Get-FleetPaginatedData -Response $response -ReturnMetadata
                     $pageItems = @($pageData.Data | Where-Object { $null -ne $_ })
 
@@ -395,7 +646,7 @@ function Invoke-FleetDMRequest {
             else {
                 Write-Verbose "No pagination requested. Sending single request."
                 # Single request without pagination
-                $response = Invoke-RestMethod @requestParams
+                $response = Invoke-FleetRestRequest -RequestParams $requestParams -Method $Method -MaxRetries $MaxRetries -RetryNonIdempotent:$RetryNonIdempotent
                 
                 Write-Verbose "Request completed successfully"
                 
@@ -509,14 +760,10 @@ function Resolve-FleetDMApiError {
                 throw "Request timeout. The operation took too long to complete. Error: $errorMessage"
             }
             429 {
-                # Rate limiting
-                $retryAfter = $null
+                # Rate limiting. Retries already waited. This is the last failure.
+                $retryAfter = Get-FleetRetryAfterSeconds -ErrorRecord $ErrorRecord
                 
-                if ($errorMessage -match 'retry after:\s*(\d+)s') {
-                    $retryAfter = $matches[1]
-                }
-                
-                if ($retryAfter) {
+                if ($null -ne $retryAfter) {
                     Write-Warning "Rate limit exceeded. Please wait $retryAfter seconds before retrying."
                     throw "Rate limit exceeded. Retry after $retryAfter seconds."
                 }
@@ -532,6 +779,9 @@ function Resolve-FleetDMApiError {
             }
             503 {
                 throw "Service unavailable. FleetDM service is temporarily unavailable."
+            }
+            504 {
+                throw "Gateway timeout. FleetDM service may be temporarily unavailable."
             }
             default {
                 throw "FleetDM API error (HTTP $statusCode): $errorMessage"

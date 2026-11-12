@@ -701,4 +701,379 @@ Describe "Invoke-FleetDMRequest" -Tags @('Unit', 'Core') {
             }
         }
     }
+
+    Context "Automatic retry" {
+        BeforeAll {
+            function global:New-FleetMockHttpError {
+                param(
+                    [int]$StatusCode,
+                    [string]$StatusDescription,
+                    [string]$Body,
+                    [object]$Headers
+                )
+
+                if (-not $Headers) {
+                    $Headers = @{}
+                }
+
+                $response = [PSCustomObject]@{
+                    StatusCode = $StatusCode
+                    StatusDescription = $StatusDescription
+                    Headers = $Headers
+                }
+                $exception = New-Object System.Exception $StatusDescription
+                $exception | Add-Member -NotePropertyName Response -NotePropertyValue $response -Force
+                $record = [System.Management.Automation.ErrorRecord]::new(
+                    $exception,
+                    "FleetHttp$StatusCode",
+                    [System.Management.Automation.ErrorCategory]::InvalidOperation,
+                    $null
+                )
+                if ($Body) {
+                    $record.ErrorDetails = [System.Management.Automation.ErrorDetails]::new($Body)
+                }
+
+                return $record
+            }
+        }
+
+        AfterAll {
+            Remove-Item -Path function:New-FleetMockHttpError -ErrorAction SilentlyContinue
+        }
+
+        It "succeeds after waiting when HTTP 429 is followed by HTTP 200" {
+            InModuleScope FleetDM-PowerShell {
+                $script:FleetAttempt = 0
+                Mock Wait-FleetRequestRetry { }
+                Mock Invoke-RestMethod {
+                    $script:FleetAttempt++
+                    if ($script:FleetAttempt -eq 1) {
+                        $record = New-FleetMockHttpError -StatusCode 429 -StatusDescription 'Too Many Requests' -Headers @{
+                            'Retry-After' = '5'
+                        } -Body '{"message":"Rate limit exceeded. Retry after: 30s"}'
+                        throw $record
+                    }
+
+                    return [PSCustomObject]@{
+                        hosts = @(@{ id = 1; hostname = 'host1' })
+                    }
+                }
+
+                $records = @(
+                    Invoke-FleetDMRequest -Endpoint 'hosts' -Method GET -Verbose 4>&1
+                )
+                $result = $records | Where-Object { $_ -isnot [System.Management.Automation.VerboseRecord] -and $_ -isnot [System.Management.Automation.WarningRecord] }
+                $log = @(
+                    $records |
+                        Where-Object { $_ -is [System.Management.Automation.VerboseRecord] } |
+                        ForEach-Object { $_.Message }
+                ) -join "`n"
+
+                @($result)[0].hosts[0].hostname | Should -Be 'host1'
+                $log | Should -Match 'Retrying GET'
+                $log | Should -Match 'HTTP 429'
+                $log | Should -Match '5 seconds'
+                $log | Should -Match 'retry 1 of 3'
+                Should -Invoke Invoke-RestMethod -Times 2
+                Should -Invoke Wait-FleetRequestRetry -Times 1 -ParameterFilter { $Seconds -eq 5 }
+            }
+        }
+
+        It "retries any method after the retry-after text when HTTP 429 has no header" {
+            InModuleScope FleetDM-PowerShell {
+                $script:FleetAttempt = 0
+                Mock Wait-FleetRequestRetry { }
+                Mock Invoke-RestMethod {
+                    $script:FleetAttempt++
+                    if ($script:FleetAttempt -eq 1) {
+                        $record = New-FleetMockHttpError -StatusCode 429 -StatusDescription 'Too Many Requests' -Body '{"message":"Rate limit exceeded. Retry after: 7s"}'
+                        throw $record
+                    }
+
+                    return [PSCustomObject]@{ policy = @{ id = 4 } }
+                }
+
+                $result = Invoke-FleetDMRequest -Endpoint 'policies' -Method POST -Body @{ name = 'retry' }
+                $result.policy.id | Should -Be 4
+                Should -Invoke Invoke-RestMethod -Times 2 -ParameterFilter { $Method -eq 'POST' }
+                Should -Invoke Wait-FleetRequestRetry -Times 1 -ParameterFilter { $Seconds -eq 7 }
+            }
+        }
+
+        It "reads a PowerShell 7 Retry-After date as seconds from now" {
+            InModuleScope FleetDM-PowerShell {
+                $script:FleetAttempt = 0
+                Mock Wait-FleetRequestRetry { }
+                Mock Invoke-RestMethod {
+                    $script:FleetAttempt++
+                    if ($script:FleetAttempt -eq 1) {
+                        $headers = [PSCustomObject]@{
+                            RetryAfter = [PSCustomObject]@{
+                                Delta = $null
+                                Date = [datetimeoffset]::UtcNow.AddSeconds(11)
+                            }
+                        }
+                        $record = New-FleetMockHttpError -StatusCode 429 -StatusDescription 'Too Many Requests' -Headers $headers
+                        throw $record
+                    }
+
+                    return [PSCustomObject]@{ hosts = @() }
+                }
+
+                Invoke-FleetDMRequest -Endpoint 'hosts' | Out-Null
+                Should -Invoke Wait-FleetRequestRetry -Times 1 -ParameterFilter { $Seconds -ge 9 -and $Seconds -le 12 }
+            }
+        }
+
+        It "uses the PowerShell 7 Retry-After delta when that header shape is present" {
+            InModuleScope FleetDM-PowerShell {
+                $script:FleetAttempt = 0
+                Mock Wait-FleetRequestRetry { }
+                Mock Invoke-RestMethod {
+                    $script:FleetAttempt++
+                    if ($script:FleetAttempt -eq 1) {
+                        $headers = [PSCustomObject]@{
+                            RetryAfter = [PSCustomObject]@{ Delta = [timespan]::FromSeconds(6) }
+                        }
+                        $record = New-FleetMockHttpError -StatusCode 429 -StatusDescription 'Too Many Requests' -Headers $headers
+                        throw $record
+                    }
+
+                    return [PSCustomObject]@{ hosts = @() }
+                }
+
+                Invoke-FleetDMRequest -Endpoint 'hosts' | Out-Null
+                Should -Invoke Wait-FleetRequestRetry -Times 1 -ParameterFilter { $Seconds -eq 6 }
+            }
+        }
+
+        It "throws the last error after three retries when GET receives HTTP 503" {
+            InModuleScope FleetDM-PowerShell {
+                $script:FleetDelays = [System.Collections.Generic.List[int]]::new()
+                Mock Wait-FleetRequestRetry {
+                    $script:FleetDelays.Add([int]$Seconds)
+                }
+                Mock Invoke-RestMethod {
+                    $record = New-FleetMockHttpError -StatusCode 503 -StatusDescription 'Service Unavailable' -Body '{"message":"unavailable"}'
+                    throw $record
+                }
+
+                $failed = $false
+                $verbose = [System.Collections.Generic.List[string]]::new()
+                try {
+                    Invoke-FleetDMRequest -Endpoint 'hosts' -Method GET -Verbose 4>&1 |
+                        Where-Object { $_ -is [System.Management.Automation.VerboseRecord] } |
+                        ForEach-Object { $verbose.Add($_.Message) }
+                }
+                catch {
+                    $failed = $true
+                    $_.Exception.Message | Should -Be 'Service unavailable. FleetDM service is temporarily unavailable.'
+                    $_.Exception.Message | Should -Not -Match 'Failed to communicate'
+                }
+
+                $failed | Should -BeTrue
+                @($verbose | Where-Object { $_ -match 'Retrying GET' }).Count | Should -Be 3
+                Should -Invoke Invoke-RestMethod -Times 4
+                Should -Invoke Wait-FleetRequestRetry -Times 3
+                @($script:FleetDelays) | Should -Be @(2, 4, 8)
+            }
+        }
+
+        It "throws HTTP 503 on POST without retrying" {
+            InModuleScope FleetDM-PowerShell {
+                Mock Wait-FleetRequestRetry { }
+                Mock Invoke-RestMethod {
+                    $record = New-FleetMockHttpError -StatusCode 503 -StatusDescription 'Service Unavailable' -Body '{"message":"unavailable"}'
+                    throw $record
+                }
+
+                { Invoke-FleetDMRequest -Endpoint 'software/install' -Method POST -Body @{ host_id = 1 } } |
+                    Should -Throw '*Service unavailable*'
+                Should -Invoke Invoke-RestMethod -Times 1
+                Should -Invoke Wait-FleetRequestRetry -Times 0
+            }
+        }
+
+        It "does not retry <Method> after HTTP 503 unless RetryNonIdempotent is set" -TestCases @(
+            @{ Method = 'PUT' }
+            @{ Method = 'PATCH' }
+            @{ Method = 'DELETE' }
+        ) {
+            InModuleScope FleetDM-PowerShell -Parameters @{ MethodName = $Method } {
+                Mock Wait-FleetRequestRetry { }
+                Mock Invoke-RestMethod {
+                    $record = New-FleetMockHttpError -StatusCode 503 -StatusDescription 'Service Unavailable'
+                    throw $record
+                }
+
+                { Invoke-FleetDMRequest -Endpoint 'hosts/1' -Method $MethodName -Body @{ name = 'once' } } |
+                    Should -Throw '*Service unavailable*'
+                Should -Invoke Invoke-RestMethod -Times 1
+                Should -Invoke Wait-FleetRequestRetry -Times 0
+            }
+        }
+
+        It "retries POST after HTTP 503 when RetryNonIdempotent is set" {
+            InModuleScope FleetDM-PowerShell {
+                $script:FleetAttempt = 0
+                Mock Wait-FleetRequestRetry { }
+                Mock Invoke-RestMethod {
+                    $script:FleetAttempt++
+                    if ($script:FleetAttempt -eq 1) {
+                        $record = New-FleetMockHttpError -StatusCode 503 -StatusDescription 'Service Unavailable'
+                        throw $record
+                    }
+
+                    return [PSCustomObject]@{ install = 'queued' }
+                }
+
+                $result = Invoke-FleetDMRequest -Endpoint 'software/install' -Method POST -Body @{ host_id = 1 } -RetryNonIdempotent
+                $result.install | Should -Be 'queued'
+                Should -Invoke Invoke-RestMethod -Times 2
+                Should -Invoke Wait-FleetRequestRetry -Times 1 -ParameterFilter { $Seconds -eq 2 }
+            }
+        }
+
+        It "retries GET after HTTP <StatusCode> and then returns the host" -TestCases @(
+            @{ StatusCode = 502 }
+            @{ StatusCode = 504 }
+        ) {
+            InModuleScope FleetDM-PowerShell -Parameters @{ Code = $StatusCode } {
+                $script:FleetAttempt = 0
+                Mock Wait-FleetRequestRetry { }
+                Mock Invoke-RestMethod {
+                    $script:FleetAttempt++
+                    if ($script:FleetAttempt -eq 1) {
+                        $record = New-FleetMockHttpError -StatusCode $Code -StatusDescription "HTTP $Code"
+                        throw $record
+                    }
+
+                    return [PSCustomObject]@{ hosts = @(@{ id = 9 }) }
+                }
+
+                $result = Invoke-FleetDMRequest -Endpoint 'hosts' -Method GET
+                $result.hosts[0].id | Should -Be 9
+                Should -Invoke Wait-FleetRequestRetry -Times 1 -ParameterFilter { $Seconds -eq 2 }
+            }
+        }
+
+        It "does not retry HTTP 500" {
+            InModuleScope FleetDM-PowerShell {
+                Mock Wait-FleetRequestRetry { }
+                Mock Invoke-RestMethod {
+                    $record = New-FleetMockHttpError -StatusCode 500 -StatusDescription 'Internal Server Error' -Body '{"message":"boom"}'
+                    throw $record
+                }
+
+                { Invoke-FleetDMRequest -Endpoint 'hosts' -Method GET } |
+                    Should -Throw '*Internal server error*'
+                Should -Invoke Invoke-RestMethod -Times 1
+                Should -Invoke Wait-FleetRequestRetry -Times 0
+            }
+        }
+
+        It "stops after MaxRetries 0 without waiting" {
+            InModuleScope FleetDM-PowerShell {
+                Mock Wait-FleetRequestRetry { }
+                Mock Invoke-RestMethod {
+                    $record = New-FleetMockHttpError -StatusCode 503 -StatusDescription 'Service Unavailable'
+                    throw $record
+                }
+
+                { Invoke-FleetDMRequest -Endpoint 'hosts' -Method GET -MaxRetries 0 } |
+                    Should -Throw '*Service unavailable*'
+                Should -Invoke Invoke-RestMethod -Times 1
+                Should -Invoke Wait-FleetRequestRetry -Times 0
+            }
+        }
+
+        It "uses the backoff when HTTP 429 has no Retry-After hint" {
+            InModuleScope FleetDM-PowerShell {
+                $script:FleetAttempt = 0
+                Mock Wait-FleetRequestRetry { }
+                Mock Invoke-RestMethod {
+                    $script:FleetAttempt++
+                    if ($script:FleetAttempt -eq 1) {
+                        $record = New-FleetMockHttpError -StatusCode 429 -StatusDescription 'Too Many Requests'
+                        throw $record
+                    }
+
+                    return [PSCustomObject]@{ hosts = @() }
+                }
+
+                Invoke-FleetDMRequest -Endpoint 'hosts' -Method GET | Out-Null
+                Should -Invoke Wait-FleetRequestRetry -Times 1 -ParameterFilter { $Seconds -eq 2 }
+            }
+        }
+
+        It "keeps secret query values out of the retry verbose line" {
+            InModuleScope FleetDM-PowerShell {
+                $script:FleetAttempt = 0
+                Mock Wait-FleetRequestRetry { }
+                Mock Invoke-RestMethod {
+                    $script:FleetAttempt++
+                    if ($script:FleetAttempt -eq 1) {
+                        $record = New-FleetMockHttpError -StatusCode 503 -StatusDescription 'Service Unavailable'
+                        throw $record
+                    }
+
+                    return [PSCustomObject]@{ hosts = @() }
+                }
+
+                $records = @(
+                    Invoke-FleetDMRequest -Endpoint 'hosts' -QueryParameters @{
+                        status = 'online'
+                        token  = 'gg_test_not_a_real_query'
+                    } -Verbose 4>&1
+                )
+                $log = @(
+                    $records |
+                        Where-Object { $_ -is [System.Management.Automation.VerboseRecord] } |
+                        ForEach-Object { $_.Message }
+                ) -join "`n"
+
+                $log | Should -Match 'Retrying GET'
+                $log | Should -Match 'token=\[REDACTED\]'
+                $log | Should -Not -Match 'gg_test_not_a_real_query'
+            }
+        }
+
+        It "retries one paginated page and still reads the next page" {
+            InModuleScope FleetDM-PowerShell {
+                $script:FleetAttempt = 0
+                Mock Wait-FleetRequestRetry { }
+                Mock Invoke-RestMethod {
+                    $script:FleetAttempt++
+                    if ($script:FleetAttempt -eq 1) {
+                        $record = New-FleetMockHttpError -StatusCode 503 -StatusDescription 'Service Unavailable'
+                        throw $record
+                    }
+
+                    if ("$Uri" -like '*page=1*') {
+                        return [PSCustomObject]@{
+                            hosts = @(
+                                [PSCustomObject]@{ id = 3; hostname = 'host3' }
+                            )
+                            meta = [PSCustomObject]@{ has_next_results = $false }
+                        }
+                    }
+
+                    return [PSCustomObject]@{
+                        hosts = @(
+                            [PSCustomObject]@{ id = 1; hostname = 'host1' }
+                            [PSCustomObject]@{ id = 2; hostname = 'host2' }
+                        )
+                        meta = [PSCustomObject]@{ has_next_results = $true }
+                    }
+                }
+
+                $result = @(Invoke-FleetDMRequest -Endpoint 'hosts' -FollowPagination)
+                $result.Count | Should -Be 3
+                $result[0].hostname | Should -Be 'host1'
+                $result[2].hostname | Should -Be 'host3'
+                Should -Invoke Invoke-RestMethod -Times 3
+                Should -Invoke Wait-FleetRequestRetry -Times 1 -ParameterFilter { $Seconds -eq 2 }
+            }
+        }
+    }
 }

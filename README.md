@@ -258,7 +258,11 @@ Invoke-FleetQuery -Query "SELECT * FROM system_info;" -HostId $hostIds
 
 ## Error Handling
 
-The module provides detailed error messages and supports standard PowerShell error handling:
+The module retries a failed request before it throws:
+
+- **HTTP 429** is retried for every method. The wait is the `Retry-After` header when Fleet sends one, otherwise `retry after: Ns` in the error. If neither is present, the wait is 2 seconds, then 4, then 8.
+- **HTTP 502, 503, and 504** are retried for GET, with that same 2, 4, and 8 second backoff. POST, PUT, PATCH, and DELETE are not retried, so a software install or other change is not sent twice.
+- The default is **3** extra attempts (`-MaxRetries`). `-Verbose` writes one line per retry. The last error is thrown after that. Pass `-MaxRetries 0` to `Invoke-FleetDMMethod` to disable retries for one call. Pass `-RetryNonIdempotent` only when repeating a POST, PUT, PATCH, or DELETE is safe.
 
 ```powershell
 try {
@@ -267,6 +271,10 @@ try {
 catch {
     Write-Error "Failed to get host: $_"
 }
+
+# One direct call with no retry, or an explicit opt-in for a non-GET gateway retry.
+Invoke-FleetDMMethod -Endpoint "hosts" -MaxRetries 0
+Invoke-FleetDMMethod -Endpoint "hosts/123/refetch" -Method POST -RetryNonIdempotent
 ```
 
 ## Authentication
@@ -436,6 +444,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **PowerShell Gallery**: [FleetDM-PowerShell](https://www.powershellgallery.com/packages/FleetDM-PowerShell)
 
 ## Version History
+
+### 2.2.1 - Fleet list responses and request retries
+
+- `Get-FleetTeam` returns fleets when Fleet sends the same list under both `teams` and `fleets`
+- Requests retry HTTP 429 for every method, and HTTP 502, 503, and 504 for GET, up to 3 extra attempts
 
 ### 2.2.0 - Premium cmdlets and API fixes
 

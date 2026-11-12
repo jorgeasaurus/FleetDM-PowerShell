@@ -2,6 +2,10 @@
 
 ## 2.2.1
 
+### Added
+
+- Requests retry HTTP 429 for every method and HTTP 502, 503, and 504 for GET. `-MaxRetries` defaults to 3 extra attempts. A 429 waits for the `Retry-After` header or `retry after: Ns` in the error. Gateway retries wait 2, 4, then 8 seconds. `-RetryNonIdempotent` also retries POST, PUT, PATCH, and DELETE after a gateway error. `Invoke-FleetDMMethod` forwards both parameters. Each retry writes a verbose line, and the last error is thrown when the attempts are used up.
+
 ### Fixed
 
 - `Get-FleetTeam` returns fleets when Fleet sends the same list under both `teams` and `fleets`. An empty or null legacy key no longer hides the records, and the two keys are not concatenated.

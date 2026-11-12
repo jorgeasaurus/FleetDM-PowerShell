@@ -1694,6 +1694,29 @@ Connect-FleetDM -BaseUri "https://fleet.example.com" -Credential $cred</dev:code
           <dev:defaultValue>False</dev:defaultValue>
         </command:parameter>
         <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+          <maml:name>MaxRetries</maml:name>
+          <maml:description>
+            <maml:para>Maximum number of additional attempts after the first request. The default is 3 when this is omitted. HTTP 429 is retried for every method. HTTP 502, 503, and 504 are retried for GET. Gateway retries wait 2, 4, then 8 seconds. A 429 waits for Retry-After or for "retry after: Ns" in the error.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">Int32</command:parameterValue>
+          <dev:type>
+            <maml:name>Int32</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>3</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+          <maml:name>RetryNonIdempotent</maml:name>
+          <maml:description>
+            <maml:para>Also retry POST, PUT, PATCH, and DELETE after HTTP 502, 503, or 504. HTTP 429 is retried without this switch.</maml:para>
+          </maml:description>
+          <dev:type>
+            <maml:name>SwitchParameter</maml:name>
+            <maml:uri />
+          </dev:type>
+          <dev:defaultValue>False</dev:defaultValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
           <maml:name>Raw</maml:name>
           <maml:description>
             <maml:para>Return the raw response object without processing</maml:para>
@@ -1780,6 +1803,30 @@ Connect-FleetDM -BaseUri "https://fleet.example.com" -Credential $cred</dev:code
         <dev:defaultValue>False</dev:defaultValue>
       </command:parameter>
       <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+        <maml:name>MaxRetries</maml:name>
+        <maml:description>
+          <maml:para>Maximum number of additional attempts after the first request. The default is 3 when this is omitted. HTTP 429 is retried for every method. HTTP 502, 503, and 504 are retried for GET. Gateway retries wait 2, 4, then 8 seconds. A 429 waits for Retry-After or for "retry after: Ns" in the error.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="false">Int32</command:parameterValue>
+        <dev:type>
+          <maml:name>Int32</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>3</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
+        <maml:name>RetryNonIdempotent</maml:name>
+        <maml:description>
+          <maml:para>Also retry POST, PUT, PATCH, and DELETE after HTTP 502, 503, or 504. HTTP 429 is retried without this switch.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="false">SwitchParameter</command:parameterValue>
+        <dev:type>
+          <maml:name>SwitchParameter</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>False</dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="true" globbing="false" pipelineInput="False" position="named" aliases="none">
         <maml:name>Raw</maml:name>
         <maml:description>
           <maml:para>Return the raw response object without processing</maml:para>
@@ -1849,6 +1896,20 @@ Invoke-FleetDMMethod -Endpoint "teams" -Method POST -Body $body</dev:code>
         <dev:code>Invoke-FleetDMMethod -Endpoint "labels" -Method GET -FollowPagination</dev:code>
         <dev:remarks>
           <maml:para>Gets all labels, automatically following pagination</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>-------------------------- EXAMPLE 6 --------------------------</maml:title>
+        <dev:code>Invoke-FleetDMMethod -Endpoint "hosts" -MaxRetries 0</dev:code>
+        <dev:remarks>
+          <maml:para>Sends one GET and does not retry HTTP 429 or a gateway error.</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>-------------------------- EXAMPLE 7 --------------------------</maml:title>
+        <dev:code>Invoke-FleetDMMethod -Endpoint "hosts/123/refetch" -Method POST -RetryNonIdempotent</dev:code>
+        <dev:remarks>
+          <maml:para>Retries that POST after HTTP 502, 503, or 504. Leave the switch off when repeating the call could apply the change twice. HTTP 429 is retried either way.</maml:para>
         </dev:remarks>
       </command:example>
     </command:examples>

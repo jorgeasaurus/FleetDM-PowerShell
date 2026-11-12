@@ -80,12 +80,13 @@ Verbose request and connection logs redact `password`, token fields, and `Author
 
 ## Error Handling
 
-The module provides comprehensive error handling with detailed messages for:
-- Authentication failures
-- Rate limiting
-- Permission issues
-- Network errors
-- API validation errors
+The module provides detailed messages for authentication failures, rate limiting, permission issues, network errors, and API validation errors.
+
+Requests retry before those messages are thrown:
+
+- HTTP 429 is retried for every method. The wait is the `Retry-After` header, or `retry after: Ns` in the error. Otherwise the wait is 2 seconds, then 4, then 8.
+- HTTP 502, 503, and 504 are retried for GET with that same backoff. POST, PUT, PATCH, and DELETE are not retried unless you pass `-RetryNonIdempotent` to `Invoke-FleetDMMethod`.
+- The default is 3 extra attempts. `-MaxRetries 0` turns retries off for that direct call. `-Verbose` writes one line for each retry. The last error is thrown when the attempts are used up.
 
 ## Module Structure
 
