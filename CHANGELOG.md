@@ -1,12 +1,21 @@
 # Changelog
 
+## 2.3.0
+
+### Added
+
+- Requests retry HTTP 429 for every method and HTTP 502, 503, and 504 for GET. `-MaxRetries` defaults to 3 extra attempts. A 429, and a gateway response that includes one, waits for the `Retry-After` header (an integer or an HTTP-date) or `retry after: Ns` in the error. Gateway retries otherwise wait 2, 4, then 8 seconds. `-MaxRetryDelaySeconds` defaults to 120 and caps every wait, including a huge `Retry-After`. A wait below 1 second uses the backoff. `-RetryNonIdempotent` also retries POST, PUT, PATCH, and DELETE after a gateway error. `Invoke-FleetDMMethod` forwards these parameters when the caller sets them. Each retry writes a verbose line, and the last error is thrown when the attempts are used up.
+
+### Fixed
+
+- `Connect-FleetDM` connects when a token can call `GET /api/v1/fleet/me` but `GET /api/v1/fleet/version` returns 403. The stored version is `$null`. `-SkipVersionCheck` skips the version call. HTTP 401 is still `Authentication failed`. Other cmdlets do not read the stored version.
+- When `/me` is the connection check, the response must be the current user (id and email). An HTML body or a user without those fields does not connect. HTTP 403 from `/me` says the token needs `GET /api/v1/fleet/me` allowed.
+
 ## 2.2.1
 
 ### Fixed
 
 - `Get-FleetTeam` returns fleets when Fleet sends the same list under both `teams` and `fleets`. An empty or null legacy key no longer hides the records, and the two keys are not concatenated.
-- `Connect-FleetDM` connects when a token can call `GET /api/v1/fleet/me` but `GET /api/v1/fleet/version` returns 403. The stored version is `$null`. `-SkipVersionCheck` skips the version call. HTTP 401 is still `Authentication failed`. Other cmdlets do not read the stored version.
-- When `/me` is the connection check, the response must be the current user (id and email). An HTML body or a user without those fields does not connect. HTTP 403 from `/me` says the token needs `GET /api/v1/fleet/me` allowed.
 
 ## 2.2.0
 

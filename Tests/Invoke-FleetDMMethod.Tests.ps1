@@ -528,4 +528,32 @@ Describe "Invoke-FleetDMMethod Tests" {
             }
         }
     }
+
+    Context "Retry parameters" {
+        It "forwards MaxRetries and RetryNonIdempotent to the request" {
+            Mock Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell {
+                return [PSCustomObject]@{ ok = $true }
+            }
+
+            $result = Invoke-FleetDMMethod -Endpoint 'hosts' -Method GET -MaxRetries 2 -MaxRetryDelaySeconds 30 -RetryNonIdempotent
+            $result.ok | Should -BeTrue
+            Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -Times 1 -Exactly -ParameterFilter {
+                $Endpoint -eq 'hosts' -and
+                $Method -eq 'GET' -and
+                $MaxRetries -eq 2 -and
+                $MaxRetryDelaySeconds -eq 30 -and
+                $RetryNonIdempotent -eq $true
+            }
+        }
+
+        It "omits retry parameters when the caller keeps the defaults" {
+            Invoke-FleetDMMethod -Endpoint 'config' -Method GET | Out-Null
+            Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -Times 1 -Exactly -ParameterFilter {
+                $Endpoint -eq 'config' -and
+                $null -eq $MaxRetries -and
+                $null -eq $MaxRetryDelaySeconds -and
+                -not $RetryNonIdempotent
+            }
+        }
+    }
 }

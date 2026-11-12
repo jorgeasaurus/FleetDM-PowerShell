@@ -5,7 +5,7 @@ title: FleetDM-PowerShell
 
 # FleetDM-PowerShell
 
-<p class="lead">The module calls the Fleet REST API from Windows PowerShell 5.1 and PowerShell 7. Version 2.2.0 adds Fleet Premium cmdlets, host wipe, and secret redaction in verbose logs.</p>
+<p class="lead">The module calls the Fleet REST API from Windows PowerShell 5.1 and PowerShell 7. Version 2.3.0 retries HTTP 429 and gateway errors, and connects an API-only token when GET /version returns 403. Version 2.2.0 adds Fleet Premium cmdlets, host wipe, and secret redaction in verbose logs.</p>
 
 <div class="callouts">
 <div class="callout" markdown="1">
@@ -21,6 +21,8 @@ title: FleetDM-PowerShell
 <div class="callout" markdown="1">
 
 **Verbose logs.** `-Verbose` redacts `password`, token fields, and `Authorization` bearer values at any nesting depth, including arrays, objects, and secret query parameters. `New-FleetUser` still sends the password to Fleet. Transcripts and CI logs receive the redacted text. Redaction does not change the request URI sent to Fleet. Do not put a secret in `Invoke-FleetDMMethod -Endpoint`: that cmdlet writes the endpoint string to the verbose log before redaction.
+
+**Retries.** HTTP 429 is retried for every method. HTTP 502, 503, and 504 are retried for GET. The default is 3 extra attempts, with a 2, 4, then 8 second backoff. A 429, and a gateway response that sends one, waits for `Retry-After` (seconds or an HTTP-date) or `retry after: Ns` in the error. Each wait is capped at 120 seconds. `Invoke-FleetDMMethod -RetryNonIdempotent` opts in for POST, PUT, PATCH, and DELETE gateway retries. `-MaxRetries 0` disables retries for that call.
 
 </div>
 </div>

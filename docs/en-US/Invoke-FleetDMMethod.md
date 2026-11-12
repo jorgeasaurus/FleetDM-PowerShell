@@ -14,7 +14,8 @@ Invokes a custom FleetDM API method
 
 ```
 Invoke-FleetDMMethod [-Endpoint] <String> [[-Method] <String>] [[-Body] <Hashtable>]
- [[-QueryParameters] <Hashtable>] [-FollowPagination] [-Raw] [-ProgressAction <ActionPreference>]
+ [[-QueryParameters] <Hashtable>] [-FollowPagination] [-MaxRetries <Int32>]
+ [-MaxRetryDelaySeconds <Int32>] [-RetryNonIdempotent] [-Raw] [-ProgressAction <ActionPreference>]
  [<CommonParameters>]
 ```
 
@@ -62,6 +63,20 @@ Invoke-FleetDMMethod -Endpoint "labels" -Method GET -FollowPagination
 ```
 
 Gets all labels, automatically following pagination
+
+### EXAMPLE 6
+```
+Invoke-FleetDMMethod -Endpoint "hosts" -MaxRetries 0
+```
+
+Sends one GET and does not retry HTTP 429 or a gateway error.
+
+### EXAMPLE 7
+```
+Invoke-FleetDMMethod -Endpoint "hosts/123/refetch" -Method POST -RetryNonIdempotent
+```
+
+Retries that POST after HTTP 502, 503, or 504. Leave the switch off when repeating the call could apply the change twice. HTTP 429 is retried either way.
 
 ## PARAMETERS
 
@@ -127,6 +142,51 @@ Accept wildcard characters: False
 
 ### -FollowPagination
 Automatically follow pagination to retrieve all results (for GET requests)
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -MaxRetries
+Maximum number of additional attempts after the first request. The default is 3 when this is omitted. HTTP 429 is retried for every method. HTTP 502, 503, and 504 are retried for GET. Gateway retries wait 2, 4, then 8 seconds. A 429 waits for Retry-After or for "retry after: Ns" in the error.
+
+```yaml
+Type: Int32
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: 3
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -MaxRetryDelaySeconds
+Longest wait before one retry, in seconds. The default is 120 when this is omitted. Retry-After and the backoff cannot sleep longer than this.
+
+```yaml
+Type: Int32
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: 120
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -RetryNonIdempotent
+Also retry POST, PUT, PATCH, and DELETE after HTTP 502, 503, or 504. HTTP 429 is retried without this switch.
 
 ```yaml
 Type: SwitchParameter

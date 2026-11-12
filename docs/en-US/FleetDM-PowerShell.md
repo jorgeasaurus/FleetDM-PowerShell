@@ -2,7 +2,7 @@
 Module Name: FleetDM-PowerShell
 Module Guid: a7c4b8f3-2d1e-4f5a-9c8b-1e3d5a7f9b2c
 Download Help Link: https://github.com/Jorgeasaurus/FleetDM-PowerShell/wiki
-Help Version: 2.2.0.0
+Help Version: 2.3.0.0
 Locale: en-US
 ---
 
