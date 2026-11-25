@@ -211,6 +211,12 @@ Describe 'Batch scripts' -Tag 'Unit' {
         }
     }
 
+    It 'throws when the pipeline gives it no hosts and sends nothing' {
+        { @() | Start-FleetScriptBatch -ScriptId 4 -Confirm:$false } | Should -Throw '*No host IDs*'
+        { [PSCustomObject]@{ id = 1 }, [PSCustomObject]@{ id = 2 } | Where-Object { $_.id -gt 5 } | Start-FleetScriptBatch -ScriptId 4 -Confirm:$false } | Should -Throw '*empty list*'
+        Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -Times 0
+    }
+
     It 'rejects empty, unknown, and blank filters before sending' {
         { Start-FleetScriptBatch -ScriptId 4 -Filter @{} -Confirm:$false } | Should -Throw '*at least one key*'
         { Start-FleetScriptBatch -ScriptId 4 -Filter @{ team = 2 } -Confirm:$false } | Should -Throw "*Unsupported filter key 'team'*"

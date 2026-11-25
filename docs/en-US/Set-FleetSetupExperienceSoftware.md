@@ -29,6 +29,8 @@ Sends PUT /api/v1/fleet/setup_experience/software with fleet_id, platform, and s
 The list replaces the current one for that fleet and platform.
 Titles not in the list stop installing during setup.
 -Clear sends an empty list.
+Piping no titles throws and sends nothing.
+An empty list would clear setup software for that fleet and platform.
 
 ## EXAMPLES
 

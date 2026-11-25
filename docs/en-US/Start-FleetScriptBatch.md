@@ -29,6 +29,8 @@ Sends POST /api/v1/fleet/scripts/run/batch with script_id and either host_ids or
 Host IDs piped in are collected and sent in one batch.
 A filter must name at least one of query, status, label_id, or fleet_id.
 An empty filter would match every host, so it is rejected.
+Piping no hosts throws and sends nothing.
+An empty host_ids list is not a way to target no one.
 
 ## EXAMPLES
 

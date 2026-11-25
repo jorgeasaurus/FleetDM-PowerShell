@@ -6,7 +6,7 @@ function Set-FleetSetupExperienceSoftware {
     .DESCRIPTION
         Sends PUT /api/v1/fleet/setup_experience/software with fleet_id, platform, and software_title_ids.
         The list replaces the current one for that fleet and platform. Titles not in the list stop installing during setup.
-        -Clear sends an empty list.
+        -Clear sends an empty list. Piping no titles throws and sends nothing. An empty list would clear setup software for that fleet and platform.
 
     .PARAMETER SoftwareTitleId
         Software title IDs to install during setup. Binds from the id or software_title_id property of piped titles.
@@ -62,6 +62,10 @@ function Set-FleetSetupExperienceSoftware {
     }
 
     end {
+        if (-not $Clear -and $ids.Count -eq 0) {
+            throw 'No software titles were given. An empty list clears setup software for this fleet and platform. Pass -Clear to remove them on purpose.'
+        }
+
         $body = @{ fleet_id = $FleetId; software_title_ids = @($ids.ToArray()) }
         if ($Platform) { $body['platform'] = $Platform }
         $platformText = if ($Platform) { $Platform } else { 'macos' }

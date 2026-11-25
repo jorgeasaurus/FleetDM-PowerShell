@@ -36,6 +36,18 @@ Describe 'Request and pagination fixes' -Tag 'Unit' {
         }
     }
 
+    It 'keeps a one-element array nested in a ConvertFrom-Json object' {
+        InModuleScope FleetDM-PowerShell {
+            $profile = '{"is_mandatory":true,"skip_setup_items":["Location"],"profile_name":"ADE"}' | ConvertFrom-Json
+            $options = '{"config":{"decorators":{"load":["SELECT 1"]}}}' | ConvertFrom-Json
+            $profileJson = ConvertTo-FleetJson -InputObject @{ enrollment_profile = $profile }
+            $optionsJson = ConvertTo-FleetJson -InputObject @{ config = $options.config }
+            $profileJson | Should -Match '"skip_setup_items":\["Location"\]'
+            $profileJson | Should -Match '"is_mandatory":true'
+            $optionsJson | Should -Match '"load":\["SELECT 1"\]'
+        }
+    }
+
     It 'encodes query text without System.Object[] and skips nulls' {
         InModuleScope FleetDM-PowerShell {
             Mock Invoke-RestMethod { return @{ hosts = @() } }

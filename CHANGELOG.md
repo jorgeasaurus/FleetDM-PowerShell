@@ -8,6 +8,9 @@
 - List cmdlets return no records when Fleet sends an empty list as `null`, such as `"scripts": null`. Before, the response envelope came back as one record. An empty page body ends pagination instead of failing parameter binding.
 - An empty `-Body` on POST, PUT, PATCH, or DELETE is sent as `{}`. Fleet rejects a JSON route with no body (`Expected JSON Body`). GET still sends no body.
 - `Tests/RunAllTests.ps1 -CodeCoverage` measures `Private` as well as `Public`. The `Public/**/*.ps1` pattern matched no files under `Private`.
+- `Set-FleetSetupExperienceSoftware` throws when the pipeline gives it no titles. An empty list is a clear, and only `-Clear` sends one.
+- `Start-FleetScriptBatch` throws when the pipeline gives it no host IDs. An empty `host_ids` list is not sent.
+- JSON bodies keep one-element arrays that sit inside a `ConvertFrom-Json` object. Windows PowerShell 5.1 used to store those ADE profile and agent-option arrays as scalars.
 
 ### Added
 

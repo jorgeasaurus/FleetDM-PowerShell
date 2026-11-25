@@ -78,6 +78,12 @@ Describe 'Setup experience cmdlets' -Tag 'Unit' {
             }
         }
 
+        It 'throws when the pipeline gives it no titles and does not clear' {
+            { @() | Set-FleetSetupExperienceSoftware -FleetId 2 -Platform linux -Confirm:$false } | Should -Throw '*Pass -Clear*'
+            { 1, 2 | Where-Object { $_ -gt 5 } | ForEach-Object { [PSCustomObject]@{ id = $_ } } | Set-FleetSetupExperienceSoftware -Confirm:$false } | Should -Throw '*No software titles*'
+            Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -Times 0
+        }
+
         It 'sends an empty list with -Clear' {
             $result = Set-FleetSetupExperienceSoftware -FleetId 2 -Platform windows -Clear -Confirm:$false
             @($result.SoftwareTitleId).Count | Should -Be 0

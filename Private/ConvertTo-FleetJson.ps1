@@ -22,7 +22,8 @@ function ConvertTo-FleetJson {
     }
 
     # ConvertTo-Json unwraps a one-element array on Windows PowerShell 5.1.
-    # Dictionaries and lists are written here. Leaves go to ConvertTo-Json.
+    # Dictionaries, lists, and ConvertFrom-Json objects are written here.
+    # Leaves go to ConvertTo-Json.
     if ($InputObject -is [System.Collections.IDictionary]) {
         $pairs = foreach ($key in @($InputObject.Keys)) {
             '{0}:{1}' -f ($key | ConvertTo-Json -Compress), (ConvertTo-FleetJson -InputObject $InputObject[$key] -Depth $Depth)
@@ -35,6 +36,18 @@ function ConvertTo-FleetJson {
             ConvertTo-FleetJson -InputObject $item -Depth $Depth
         }
         return '[' + (@($items) -join ',') + ']'
+    }
+
+    if ($InputObject -is [System.Management.Automation.PSCustomObject]) {
+        # Match ConvertTo-Json -Depth. A deeper object is truncated so a
+        # 100-level tree is not written onto the wire.
+        if ($Depth -le 0) {
+            return ($InputObject | ConvertTo-Json -Compress -Depth 0)
+        }
+        $pairs = foreach ($property in $InputObject.PSObject.Properties) {
+            '{0}:{1}' -f ($property.Name | ConvertTo-Json -Compress), (ConvertTo-FleetJson -InputObject $property.Value -Depth ($Depth - 1))
+        }
+        return '{' + (@($pairs) -join ',') + '}'
     }
 
     return ($InputObject | ConvertTo-Json -Compress -Depth $Depth)

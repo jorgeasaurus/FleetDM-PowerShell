@@ -7,6 +7,7 @@ function Start-FleetScriptBatch {
         Sends POST /api/v1/fleet/scripts/run/batch with script_id and either host_ids or filters.
         Host IDs piped in are collected and sent in one batch.
         A filter must name at least one of query, status, label_id, or fleet_id. An empty filter would match every host, so it is rejected.
+        Piping no hosts throws and sends nothing. An empty host_ids list is not a way to target no one.
 
     .PARAMETER ScriptId
         Saved script ID.
@@ -74,6 +75,9 @@ function Start-FleetScriptBatch {
             $target = "hosts matching $(Get-FleetRedactedLogText -Text $body.filters)"
         }
         else {
+            if ($hostIds.Count -eq 0) {
+                throw 'No host IDs were given. Piping no hosts would send host_ids as an empty list.'
+            }
             $body['host_ids'] = @($hostIds.ToArray())
             $target = "$($hostIds.Count) host(s): $($hostIds -join ', ')"
         }
