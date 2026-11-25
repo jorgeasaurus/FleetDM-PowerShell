@@ -157,7 +157,7 @@ function New-FleetPolicy {
         }
 
         if ($LabelIncludeAny) {
-            $body['labels_include_any'] = @($LabelIncludeAny)
+            Copy-FleetJsonArray -Target $body -Name 'labels_include_any' -Value @($LabelIncludeAny)
         }
         
         $endpoint = if ($PSBoundParameters.ContainsKey('FleetId')) { "fleets/$FleetId/policies" } else { "global/policies" }

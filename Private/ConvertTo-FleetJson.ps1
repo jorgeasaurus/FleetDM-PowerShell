@@ -136,6 +136,49 @@ function ConvertFrom-FleetJson {
     return $parsed
 }
 
+function Copy-FleetJsonArray {
+    <#
+    .SYNOPSIS
+        Stores a collection in a dictionary without dropping the array.
+
+    .DESCRIPTION
+        Windows PowerShell 5.1 turns a one-element array into a scalar, and an
+        empty array into $null, when the value is written through a hashtable
+        indexer. Fleet rejects a scalar where it expects a JSON array.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [System.Collections.IDictionary]$Target,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Name,
+
+        [Parameter(Mandatory)]
+        [AllowEmptyCollection()]
+        [object]$Value
+    )
+
+    $array = @($Value)
+    $Target[$Name] = $array
+    $stored = $Target[$Name]
+    $storedCount = if ($null -eq $stored) {
+        -1
+    }
+    elseif ($stored -is [System.Array]) {
+        $stored.Count
+    }
+    else {
+        1
+    }
+
+    # A one-element wrapper is unwrapped back to the original array.
+    if ($stored -isnot [System.Array] -or $storedCount -ne $array.Count) {
+        $Target[$Name] = , $array
+    }
+}
+
 function ConvertTo-FleetQueryString {
     <#
     .SYNOPSIS

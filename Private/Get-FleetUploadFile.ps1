@@ -155,6 +155,6 @@ function Add-FleetLabelTarget {
     }
 
     foreach ($name in $present) {
-        $Target[$map[$name]] = @($BoundParameters[$name])
+        Copy-FleetJsonArray -Target $Target -Name $map[$name] -Value @($BoundParameters[$name])
     }
 }

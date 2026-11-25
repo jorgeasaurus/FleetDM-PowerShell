@@ -38,7 +38,8 @@ function ConvertTo-FleetFilterBody {
         }
 
         $value = $Filter[$key]
-        if ($null -eq $value -or ($value -is [string] -and [string]::IsNullOrWhiteSpace($value))) {
+        $emptyList = $value -is [System.Collections.IList] -and $value.Count -eq 0
+        if ($null -eq $value -or $emptyList -or ($value -is [string] -and [string]::IsNullOrWhiteSpace($value))) {
             throw "Filter key '$key' has no value. An empty filter value matches every host."
         }
         $body[$name] = $value

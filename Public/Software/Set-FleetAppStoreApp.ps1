@@ -85,7 +85,7 @@ function Set-FleetAppStoreApp {
         if ($PSBoundParameters.ContainsKey('VersionId')) { $body['version_id'] = $VersionId }
         if ($PSBoundParameters.ContainsKey('DisplayName')) { $body['display_name'] = $DisplayName }
         if ($PSBoundParameters.ContainsKey('SelfService')) { $body['self_service'] = $SelfService }
-        if ($PSBoundParameters.ContainsKey('Categories')) { $body['categories'] = @($Categories) }
+        if ($PSBoundParameters.ContainsKey('Categories')) { Copy-FleetJsonArray -Target $body -Name 'categories' -Value @($Categories) }
         Add-FleetLabelTarget -Target $body -BoundParameters $PSBoundParameters -SingleMode
 
         if (@($body.Keys | Where-Object { $_ -notin 'fleet_id', 'version_id' }).Count -eq 0) {

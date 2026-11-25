@@ -78,7 +78,7 @@ function Start-FleetScriptBatch {
             if ($hostIds.Count -eq 0) {
                 throw 'No host IDs were given. Piping no hosts would send host_ids as an empty list.'
             }
-            $body['host_ids'] = @($hostIds.ToArray())
+            Copy-FleetJsonArray -Target $body -Name 'host_ids' -Value @($hostIds.ToArray())
             $target = "$($hostIds.Count) host(s): $($hostIds -join ', ')"
         }
 

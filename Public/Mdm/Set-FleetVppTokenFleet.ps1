@@ -13,7 +13,7 @@ function Set-FleetVppTokenFleet {
         VPP token ID. Binds from the id property of Get-FleetVppToken or Add-FleetVppToken output.
 
     .PARAMETER FleetId
-        Fleet IDs that can use the token. Use 0 for "Unassigned".
+        Fleet IDs that can use the token. Use 0 for "Unassigned". An empty list is rejected. Pass -AllFleets to assign every fleet.
 
     .PARAMETER AllFleets
         Assigns the token to every fleet.
@@ -42,6 +42,7 @@ function Set-FleetVppTokenFleet {
         [int]$Id,
 
         [Parameter(Mandatory, ParameterSetName = 'FleetId')]
+        [AllowEmptyCollection()]
         [ValidateRange(0, [int]::MaxValue)]
         [int[]]$FleetId,
 
@@ -63,6 +64,9 @@ function Set-FleetVppTokenFleet {
         }
         else {
             $fleets = @($FleetId | Select-Object -Unique)
+            if ($fleets.Count -eq 0) {
+                throw 'No fleet IDs were given. An empty list assigns the token to every fleet. Pass -AllFleets to do that on purpose.'
+            }
             $description = "Assign to fleets $($fleets -join ', '). App Store apps from this token are deleted from other fleets"
         }
 

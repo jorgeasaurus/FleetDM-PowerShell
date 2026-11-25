@@ -83,6 +83,11 @@ Describe 'Apple Business and VPP tokens' -Tag 'Unit' {
         }
     }
 
+    It 'rejects an empty fleet list instead of assigning every fleet' {
+        { Set-FleetVppTokenFleet -Id 4 -FleetId @() -Confirm:$false } | Should -Throw '*Pass -AllFleets*'
+        Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -Times 0
+    }
+
     It 'sends nothing with -WhatIf' {
         Add-FleetVppToken -Path $script:VppFile -WhatIf
         Set-FleetVppTokenFleet -Id 4 -FleetId 1 -WhatIf

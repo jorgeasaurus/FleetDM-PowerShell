@@ -195,7 +195,8 @@ Describe 'Fleet-maintained and App Store apps' -Tag 'Unit' {
             $Endpoint -eq 'software/fleet_maintained_apps' -and $Method -eq 'POST' -and
             $Body.fleet_maintained_app_id -eq 3 -and $Body.fleet_id -eq 2 -and $Body.install_script -eq 'i' -and
             $Body.pre_install_query -eq 'q' -and $Body.post_install_script -eq 'p' -and $Body.self_service -eq $true -and
-            $Body.automatic_install -eq $true -and (@($Body.labels_include_any) -join ',') -eq 'Eng'
+            $Body.automatic_install -eq $true -and $Body.labels_include_any -is [System.Array] -and
+            $Body.labels_include_any.Count -eq 1 -and $Body.labels_include_any[0] -eq 'Eng'
         }
     }
 
@@ -224,8 +225,9 @@ Describe 'Fleet-maintained and App Store apps' -Tag 'Unit' {
         Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -Times 1 -Exactly -ParameterFilter {
             $Endpoint -eq 'software/app_store_apps' -and $Method -eq 'POST' -and
             $Body.app_store_id -eq '497799835' -and $Body.platform -eq 'ipados' -and $Body.vpp_token_id -eq 1 -and
-            $Body.self_service -eq $true -and $Body.automatic_install -eq $true -and (@($Body.categories) -join ',') -eq 'Dev' -and
-            (@($Body.labels_include_all) -join ',') -eq 'Macs'
+            $Body.self_service -eq $true -and $Body.automatic_install -eq $true -and
+            $Body.categories -is [System.Array] -and $Body.categories.Count -eq 1 -and $Body.categories[0] -eq 'Dev' -and
+            $Body.labels_include_all -is [System.Array] -and $Body.labels_include_all.Count -eq 1 -and $Body.labels_include_all[0] -eq 'Macs'
         }
     }
 

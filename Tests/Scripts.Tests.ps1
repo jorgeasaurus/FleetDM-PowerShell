@@ -184,6 +184,13 @@ Describe 'Batch scripts' -Tag 'Unit' {
         }
     }
 
+    It 'sends one host id as an array' {
+        Start-FleetScriptBatch -ScriptId 4 -HostId 10 -Confirm:$false | Out-Null
+        Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -Times 1 -Exactly -ParameterFilter {
+            $Body.host_ids -is [System.Array] -and $Body.host_ids.Count -eq 1 -and $Body.host_ids[0] -eq 10
+        }
+    }
+
     It 'starts a batch for host ids' {
         $batch = Start-FleetScriptBatch -ScriptId 4 -HostId 2, 3 -Confirm:$false
         $batch.PSObject.TypeNames | Should -Contain 'FleetDM.ScriptBatch'
@@ -222,6 +229,7 @@ Describe 'Batch scripts' -Tag 'Unit' {
         { Start-FleetScriptBatch -ScriptId 4 -Filter @{ team = 2 } -Confirm:$false } | Should -Throw "*Unsupported filter key 'team'*"
         { Start-FleetScriptBatch -ScriptId 4 -Filter @{ status = $null } -Confirm:$false } | Should -Throw '*has no value*'
         { Start-FleetScriptBatch -ScriptId 4 -Filter @{ query = ' ' } -Confirm:$false } | Should -Throw '*has no value*'
+        { Start-FleetScriptBatch -ScriptId 4 -Filter @{ label_id = @() } -Confirm:$false } | Should -Throw '*has no value*'
         Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -Times 0
     }
 
@@ -272,6 +280,20 @@ Describe 'Batch scripts' -Tag 'Unit' {
         $canceled.BatchExecutionId | Should -Be 'b-1'
         Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -Times 1 -Exactly -ParameterFilter {
             $Endpoint -eq 'scripts/batch/b-1/cancel' -and $Method -eq 'POST'
+        }
+    }
+}
+
+Describe 'Script batch bodies on the wire' -Tag 'Unit' {
+    It 'sends one host id as a JSON array' {
+        InModuleScope FleetDM-PowerShell {
+            Mock Invoke-RestMethod {
+                $script:batchWire = $Body
+                return [PSCustomObject]@{ batch_execution_id = 'b-1' }
+            }
+            Start-FleetScriptBatch -ScriptId 4 -HostId 10 -Confirm:$false | Out-Null
+            $script:batchWire | Should -Match '"host_ids":\[10\]'
+            $script:batchWire | Should -Not -Match '"host_ids":10[,}]'
         }
     }
 }

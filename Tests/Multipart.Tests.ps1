@@ -343,7 +343,9 @@ Describe 'Upload and download helpers' -Tag 'Unit' {
         InModuleScope FleetDM-PowerShell {
             $target = @{}
             Add-FleetLabelTarget -Target $target -BoundParameters @{ LabelsIncludeAny = 'A'; LabelsExcludeAny = @('B', 'C') }
-            @($target.labels_include_any) | Should -Be @('A')
+            $target.labels_include_any -is [System.Array] | Should -BeTrue
+            $target.labels_include_any.Count | Should -Be 1
+            $target.labels_include_any[0] | Should -Be 'A'
             @($target.labels_exclude_any) | Should -Be @('B', 'C')
             $target.Contains('labels_include_all') | Should -BeFalse
 

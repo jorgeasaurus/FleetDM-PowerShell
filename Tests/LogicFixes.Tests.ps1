@@ -73,6 +73,27 @@ Describe 'Request and pagination fixes' -Tag 'Unit' {
         }
     }
 
+    It 'keeps a one-element or empty collection stored in a hashtable' {
+        InModuleScope FleetDM-PowerShell {
+            $body = @{}
+            Copy-FleetJsonArray -Target $body -Name 'host_ids' -Value @(10)
+            Copy-FleetJsonArray -Target $body -Name 'categories' -Value @()
+            Copy-FleetJsonArray -Target $body -Name 'labels_include_any' -Value @('Engineering')
+            $body.host_ids -is [System.Array] | Should -BeTrue
+            $body.host_ids.Count | Should -Be 1
+            $body.host_ids[0] | Should -Be 10
+            $body.categories -is [System.Array] | Should -BeTrue
+            $body.categories.Count | Should -Be 0
+            $body.labels_include_any -is [System.Array] | Should -BeTrue
+            $json = ConvertTo-FleetJson -InputObject $body
+            $json | Should -Match '"host_ids":\[10\]'
+            $json | Should -Match '"categories":\[\]'
+            $json | Should -Match '"labels_include_any":\["Engineering"\]'
+            $json | Should -Not -Match '"host_ids":10'
+            $json | Should -Not -Match '"labels_include_any":"Engineering"'
+        }
+    }
+
     It 'truncates a deep object with ConvertTo-Json depth 1, which 5.1 accepts' {
         InModuleScope FleetDM-PowerShell {
             $node = [pscustomobject]@{ label = 'leaf-value'; items = @('only') }

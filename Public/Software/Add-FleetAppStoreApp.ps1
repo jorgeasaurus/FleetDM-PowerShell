@@ -93,7 +93,7 @@ function Add-FleetAppStoreApp {
         if ($PSBoundParameters.ContainsKey('VppTokenId')) { $body['vpp_token_id'] = $VppTokenId }
         if ($SelfService) { $body['self_service'] = $true }
         if ($AutomaticInstall) { $body['automatic_install'] = $true }
-        if ($Categories) { $body['categories'] = @($Categories) }
+        if ($Categories) { Copy-FleetJsonArray -Target $body -Name 'categories' -Value @($Categories) }
         Add-FleetLabelTarget -Target $body -BoundParameters $PSBoundParameters -SingleMode
 
         if ($PSCmdlet.ShouldProcess("App Store app $AppStoreId on fleet $FleetId", 'Add')) {
