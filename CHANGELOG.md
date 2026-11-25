@@ -10,7 +10,7 @@
 - `Tests/RunAllTests.ps1 -CodeCoverage` measures `Private` as well as `Public`. The `Public/**/*.ps1` pattern matched no files under `Private`.
 - `Set-FleetSetupExperienceSoftware` throws when the pipeline gives it no titles. An empty list is a clear, and only `-Clear` sends one.
 - `Start-FleetScriptBatch` throws when the pipeline gives it no host IDs. An empty `host_ids` list is not sent.
-- JSON bodies keep one-element arrays nested in an object. ADE profiles and agent options parsed on Windows PowerShell 5.1 stay arrays instead of becoming scalars.
+- JSON bodies keep one-element arrays nested in an object. ADE profiles and agent options parsed on Windows PowerShell 5.1 stay arrays instead of becoming scalars. A tree deeper than the JSON depth limit is truncated with `ConvertTo-Json -Depth 1`, because 5.1 rejects `-Depth 0`.
 
 ### Added
 

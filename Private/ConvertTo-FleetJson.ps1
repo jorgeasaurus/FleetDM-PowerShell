@@ -40,9 +40,10 @@ function ConvertTo-FleetJson {
 
     if ($InputObject -is [System.Management.Automation.PSCustomObject]) {
         # Match ConvertTo-Json -Depth. A deeper object is truncated so a
-        # 100-level tree is not written onto the wire.
+        # 100-level tree is not written onto the wire. Depth 0 is invalid
+        # on Windows PowerShell 5.1, whose minimum is 1.
         if ($Depth -le 0) {
-            return ($InputObject | ConvertTo-Json -Compress -Depth 0)
+            return ($InputObject | ConvertTo-Json -Compress -Depth 1)
         }
         $pairs = foreach ($property in $InputObject.PSObject.Properties) {
             '{0}:{1}' -f ($property.Name | ConvertTo-Json -Compress), (ConvertTo-FleetJson -InputObject $property.Value -Depth ($Depth - 1))
@@ -50,7 +51,13 @@ function ConvertTo-FleetJson {
         return '{' + (@($pairs) -join ',') + '}'
     }
 
-    return ($InputObject | ConvertTo-Json -Compress -Depth $Depth)
+    # Windows PowerShell 5.1 rejects ConvertTo-Json -Depth 0. A scalar does not
+    # need a deeper walk, so the floor is 1.
+    $leafDepth = $Depth
+    if ($leafDepth -lt 1) {
+        $leafDepth = 1
+    }
+    return (ConvertTo-Json -InputObject $InputObject -Compress -Depth $leafDepth)
 }
 
 function ConvertFrom-FleetJsonValue {
