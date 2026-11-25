@@ -48,6 +48,22 @@ Describe 'Request and pagination fixes' -Tag 'Unit' {
         }
     }
 
+    It 'truncates a deep object with ConvertTo-Json depth 1, which 5.1 accepts' {
+        InModuleScope FleetDM-PowerShell {
+            $node = [pscustomobject]@{ label = 'leaf-value'; items = @('only') }
+            foreach ($unused in 1..5) {
+                $node = [pscustomobject]@{ child = $node }
+            }
+            $json = ConvertTo-FleetJson -InputObject $node -Depth 1
+            { $null = $json | ConvertFrom-Json } | Should -Not -Throw
+            $json | Should -Match '"child"'
+            $json | Should -Not -Match 'leaf-value'
+            $definition = (Get-Command ConvertTo-FleetJson).Definition
+            $definition | Should -Not -Match 'ConvertTo-Json -Compress -Depth 0'
+            $definition | Should -Match 'ConvertTo-Json -Compress -Depth 1'
+        }
+    }
+
     It 'encodes query text without System.Object[] and skips nulls' {
         InModuleScope FleetDM-PowerShell {
             Mock Invoke-RestMethod { return @{ hosts = @() } }
