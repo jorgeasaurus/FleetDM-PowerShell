@@ -19,6 +19,7 @@ function Add-FleetTypeName {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory, ValueFromPipeline)]
+        [AllowNull()]
         [object]$InputObject,
         
         [Parameter(Mandatory, ParameterSetName = 'TypeName')]

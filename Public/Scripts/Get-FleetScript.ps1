@@ -5,11 +5,15 @@ function Get-FleetScript {
 
     .DESCRIPTION
         Sends GET /api/v1/fleet/scripts or GET /api/v1/fleet/scripts/{id}.
+        -Contents sends GET /api/v1/fleet/scripts/{id}?alt=media and returns the script text decoded as UTF-8.
         Listing scripts for unassigned hosts is available in Fleet Free.
         Filtering with FleetId requires Fleet Premium.
 
     .PARAMETER Id
         Script ID.
+
+    .PARAMETER Contents
+        Returns the script text instead of the script metadata.
 
     .PARAMETER FleetId
         Fleet Premium. Lists scripts saved on this fleet. Omit it to list scripts for unassigned hosts.
@@ -26,6 +30,9 @@ function Get-FleetScript {
     .EXAMPLE
         Get-FleetScript -Id 12
 
+    .EXAMPLE
+        Get-FleetScript -Id 12 -Contents | Set-Content ./collect.sh
+
     .NOTES
         Passing FleetId requires Fleet Premium and returns HTTP 402 on Fleet Free.
         https://fleetdm.com/docs/rest-api/rest-api#list-scripts
@@ -38,6 +45,9 @@ function Get-FleetScript {
         [Parameter(ParameterSetName = 'ById', Mandatory, ValueFromPipeline, ValueFromPipelineByPropertyName)]
         [ValidateRange(1, [int]::MaxValue)]
         [int]$Id,
+
+        [Parameter(ParameterSetName = 'ById')]
+        [switch]$Contents,
 
         [Parameter(ParameterSetName = 'List')]
         [ValidateRange(0, [int]::MaxValue)]
@@ -54,6 +64,9 @@ function Get-FleetScript {
 
     process {
         if ($PSCmdlet.ParameterSetName -eq 'ById') {
+            if ($Contents) {
+                return (Get-FleetDownloadText -Endpoint "scripts/$Id" -QueryParameters @{ alt = 'media' })
+            }
             $response = Invoke-FleetDMRequest -Endpoint "scripts/$Id" -Method GET
             return (Get-FleetResponseRecord -Response $response -Name 'script' -TypeName 'FleetDM.Script')
         }

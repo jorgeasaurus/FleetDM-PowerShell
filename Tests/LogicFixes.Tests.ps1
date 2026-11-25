@@ -396,6 +396,40 @@ Describe 'Premium HTTP errors' -Tag 'Unit' {
         }
     }
 
+    It 'keeps errors[].reason from a live Fleet 4.96 HTTP 422 response' {
+        # Captured verbatim from POST /api/v1/fleet/scripts/run against a host without fleetd.
+        $fixture = @'
+{
+  "message": "Unprocessable Entity",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled."
+    }
+  ],
+  "uuid": "ee6abe15-1ed1-4915-af68-4d03095cde20"
+}
+'@
+        . (Join-Path $PSScriptRoot 'TestHelper.ps1')
+        $server = Start-FleetTestListener -StatusCode 422 -ResponseBody $fixture -ResponseContentType 'application/json; charset=utf-8'
+        try {
+            InModuleScope FleetDM-PowerShell -Parameters @{ Base = $server.BaseUri } {
+                param($Base)
+                $script:FleetDMConnection.BaseUri = $Base
+            }
+            $thrown = $null
+            try { Invoke-FleetScript -HostId 2 -ScriptContents 'echo hi' -Confirm:$false } catch { $thrown = $_.Exception.Message }
+            $thrown | Should -BeExactly 'Fleet could not process the request (HTTP 422). Error: Unprocessable Entity Reason: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled.'
+            $server.State.Url | Should -Be '/api/v1/fleet/scripts/run'
+        }
+        finally {
+            Stop-FleetTestListener -Server $server
+            InModuleScope FleetDM-PowerShell {
+                $script:FleetDMConnection.BaseUri = 'https://test.fleetdm.example.com'
+            }
+        }
+    }
+
     It 'reports HTTP 403 license text as Fleet Premium and leaves other 403s as access denied' {
         InModuleScope FleetDM-PowerShell {
             Mock Invoke-RestMethod {

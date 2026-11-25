@@ -295,25 +295,12 @@ Describe "FleetDM-PowerShell Module Tests" {
             $module.Name | Should -Be "FleetDM-PowerShell"
         }
         
-        It "Should export all expected functions" {
-            $expectedFunctions = @(
-                'Connect-FleetDM',
-                'Disconnect-FleetDM',
-                'Get-FleetHost',
-                'Remove-FleetHost',
-                'Get-FleetQuery',
-                'Invoke-FleetQuery',
-                'Invoke-FleetSavedQuery',
-                'Get-FleetPolicy',
-                'New-FleetPolicy',
-                'Set-FleetPolicy',
-                'Get-FleetSoftware'
-            )
-            
+        It "Should export every function listed in the manifest" {
+            $manifest = Import-PowerShellDataFile (Join-Path $PSScriptRoot '../FleetDM-PowerShell.psd1')
             $module = Get-Module -Name FleetDM-PowerShell
-            $exportedFunctions = $module.ExportedFunctions.Keys
-            
-            foreach ($function in $expectedFunctions) {
+            $exportedFunctions = @($module.ExportedFunctions.Keys)
+
+            foreach ($function in $manifest.FunctionsToExport) {
                 $exportedFunctions | Should -Contain $function
             }
         }

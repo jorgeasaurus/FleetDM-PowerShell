@@ -16,6 +16,9 @@ providing PowerShell-native commands for common operations.
 - **Queries**: Run live queries and saved queries.
 - **Software**: Read inventory. Fleet Premium adds install, uninstall, and self-service categories.
 - **Fleets, scripts, MDM, and SSO**: Fleet Premium cmdlets. Company-owned Android wipe is available in Fleet Free.
+- **Uploads and downloads**: Scripts, configuration profiles, installers, EULAs, bootstrap packages, and VPP tokens are sent as `multipart/form-data` on Windows PowerShell 5.1 and PowerShell 7. Installers and bootstrap packages stream from disk. Downloads are written with `-OutFile`, and `-Contents` returns script text decoded as UTF-8.
+- **Configuration profiles, setup experience, and enrollment**: Upload, sync, resend, and target OS settings profiles. Set setup software, the setup script, the EULA, the bootstrap package, ADE profiles, VPP tokens, Google conditional access, and Autopilot Graph credentials.
+- **Host secrets**: Read and rotate disk encryption keys, Recovery Lock passwords, and managed account passwords, and cancel pending MDM commands.
 
 ## Getting Started
 
@@ -76,7 +79,7 @@ The module supports multiple authentication methods:
 
 For SSO-enabled environments, obtain an API token through the FleetDM UI.
 
-Verbose request and connection logs redact `password`, token fields, and `Authorization` bearer values at any nesting depth, including arrays, objects, and secret query parameters. `New-FleetUser` still sends the password to Fleet. `-Verbose`, transcripts, and CI logs show the redacted text. Redaction does not change the request URI sent to Fleet. Do not put a secret in `Invoke-FleetDMMethod -Endpoint`: that cmdlet writes the endpoint string to the verbose log before redaction.
+Verbose request and connection logs redact `password`, token fields, `service_account_key`, `client_secret`, `private_key`, and `Authorization` bearer values at any nesting depth, including arrays, objects, and secret query parameters. `New-FleetUser` still sends the password to Fleet. `-Verbose`, transcripts, and CI logs show the redacted text. Redaction does not change the request URI sent to Fleet. Do not put a secret in `Invoke-FleetDMMethod -Endpoint`: that cmdlet writes the endpoint string to the verbose log before redaction.
 
 ## Error Handling
 
@@ -87,18 +90,25 @@ The module provides comprehensive error handling with detailed messages for:
 - Network errors
 - API validation errors
 
+Fleet puts the useful text of most 4xx responses in `errors[].reason`. The module appends it to the error after `Reason:` on HTTP 400, 403, 404, 409, 422, and other statuses. For example, a script run on a host without fleetd fails with `Fleet could not process the request (HTTP 422). Error: Unprocessable Entity Reason: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled.` The Fleet Premium and access denied messages keep their wording.
+
+Commands that act on every host that matches a filter (`Start-FleetScriptBatch`, `Move-FleetHost`, and `Send-FleetConfigurationProfile -Filter`) reject an empty filter, an unknown key, and an empty value. Fleet treats those as no filter.
+
 ## Module Structure
 
 The module organizes cmdlets into logical categories:
 
-- **Authentication**: Connect-FleetDM, Disconnect-FleetDM, New-FleetUser, Set-FleetJitProvisioning
-- **Hosts**: Get-FleetHost, Remove-FleetHost, Lock-FleetHost, Unlock-FleetHost, Invoke-FleetHostWipe, Get-FleetHostWipeStatus
-- **Policies**: Get-FleetPolicy, New-FleetPolicy, Set-FleetPolicy, Get-FleetPolicyAutomation, Reset-FleetPolicyAutomation
+- **Authentication**: Connect-FleetDM, Disconnect-FleetDM, New-FleetUser, Set-FleetJitProvisioning, Get-FleetGoogleConditionalAccess, Set-FleetGoogleConditionalAccess, Remove-FleetGoogleConditionalAccess, Get-FleetMicrosoftGraphCredential, Set-FleetMicrosoftGraphCredential
+- **Hosts**: Get-FleetHost, Remove-FleetHost, Lock-FleetHost, Unlock-FleetHost, Invoke-FleetHostWipe, Get-FleetHostWipeStatus, Move-FleetHost, Get-FleetHostSecret, Reset-FleetHostSecret, Clear-FleetHostPasscode, Get-FleetMdmCommand, Stop-FleetHostMdmCommand, Set-FleetHostNameTemplate
+- **Policies**: Get-FleetPolicy, New-FleetPolicy, Set-FleetPolicy, Remove-FleetPolicy, Get-FleetPolicyAutomation, Reset-FleetPolicyAutomation
 - **Queries**: Get-FleetQuery, Invoke-FleetQuery, Invoke-FleetSavedQuery
-- **Software**: Get-FleetSoftware, Install-FleetSoftware, Uninstall-FleetSoftware, Get-FleetSoftwareInstall, Remove-FleetSoftwarePackage, Get-FleetSelfServiceCategory, New-FleetSelfServiceCategory, Set-FleetSelfServiceCategory, Remove-FleetSelfServiceCategory
-- **Fleets**: Get-FleetTeam, New-FleetTeam, Set-FleetTeam, Remove-FleetTeam
-- **Scripts**: Get-FleetScript, Invoke-FleetScript, Remove-FleetScript
+- **Software**: Get-FleetSoftware, Get-FleetSoftwareTitle, Install-FleetSoftware, Uninstall-FleetSoftware, Get-FleetSoftwareInstall, Remove-FleetSoftwarePackage, New-FleetSoftwarePackage, Set-FleetSoftwarePackage, Save-FleetSoftwarePackage, Get-FleetMaintainedApp, Add-FleetMaintainedApp, Get-FleetAppStoreApp, Add-FleetAppStoreApp, Set-FleetAppStoreApp, Get-FleetPatchDeadline, Set-FleetPatchDeadline, Get-FleetSelfServiceCategory, New-FleetSelfServiceCategory, Set-FleetSelfServiceCategory, Remove-FleetSelfServiceCategory
+- **Fleets**: Get-FleetTeam, New-FleetTeam, Set-FleetTeam, Remove-FleetTeam, Add-FleetTeamUser, Set-FleetTeamAgentOption
+- **Scripts**: Get-FleetScript, New-FleetScript, Set-FleetScript, Invoke-FleetScript, Get-FleetScriptResult, Start-FleetScriptBatch, Get-FleetScriptBatch, Stop-FleetScriptBatch, Remove-FleetScript
 - **MDM**: Get-FleetDiskEncryption, Set-FleetDiskEncryption, Set-FleetOsUpdate, Set-FleetCalendarEvent
+- **Configuration profiles**: Get-FleetConfigurationProfile, New-FleetConfigurationProfile, Set-FleetConfigurationProfile, Remove-FleetConfigurationProfile, Sync-FleetConfigurationProfile, Send-FleetConfigurationProfile, Install-FleetConfigurationProfile, Uninstall-FleetConfigurationProfile
+- **Setup experience**: Get-FleetSetupExperienceSoftware, Set-FleetSetupExperienceSoftware, Get-FleetSetupExperienceScript, Set-FleetSetupExperienceScript, Remove-FleetSetupExperienceScript, Get-FleetEula, Set-FleetEula, Remove-FleetEula, Get-FleetBootstrapPackage, Set-FleetBootstrapPackage, Remove-FleetBootstrapPackage
+- **Enrollment**: Get-FleetAppleBusinessToken, Get-FleetVppToken, Add-FleetVppToken, Set-FleetVppTokenFleet, Get-FleetEnrollmentProfile, Set-FleetEnrollmentProfile, Remove-FleetEnrollmentProfile
 - **Core**: Invoke-FleetDMMethod (for direct API access)
 
 ## Examples

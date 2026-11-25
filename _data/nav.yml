@@ -34,6 +34,20 @@ groups:
         url: /docs/en-US/Invoke-FleetHostWipe.html
       - title: Get-FleetHostWipeStatus
         url: /docs/en-US/Get-FleetHostWipeStatus.html
+      - title: Move-FleetHost
+        url: /docs/en-US/Move-FleetHost.html
+      - title: Get-FleetHostSecret
+        url: /docs/en-US/Get-FleetHostSecret.html
+      - title: Reset-FleetHostSecret
+        url: /docs/en-US/Reset-FleetHostSecret.html
+      - title: Clear-FleetHostPasscode
+        url: /docs/en-US/Clear-FleetHostPasscode.html
+      - title: Get-FleetMdmCommand
+        url: /docs/en-US/Get-FleetMdmCommand.html
+      - title: Stop-FleetHostMdmCommand
+        url: /docs/en-US/Stop-FleetHostMdmCommand.html
+      - title: Set-FleetHostNameTemplate
+        url: /docs/en-US/Set-FleetHostNameTemplate.html
 
   - title: Policies
     items:
@@ -43,6 +57,8 @@ groups:
         url: /docs/en-US/New-FleetPolicy.html
       - title: Set-FleetPolicy
         url: /docs/en-US/Set-FleetPolicy.html
+      - title: Remove-FleetPolicy
+        url: /docs/en-US/Remove-FleetPolicy.html
       - title: Get-FleetPolicyAutomation
         url: /docs/en-US/Get-FleetPolicyAutomation.html
       - title: Reset-FleetPolicyAutomation
@@ -61,6 +77,8 @@ groups:
     items:
       - title: Get-FleetSoftware
         url: /docs/en-US/Get-FleetSoftware.html
+      - title: Get-FleetSoftwareTitle
+        url: /docs/en-US/Get-FleetSoftwareTitle.html
       - title: Install-FleetSoftware
         url: /docs/en-US/Install-FleetSoftware.html
       - title: Uninstall-FleetSoftware
@@ -69,6 +87,26 @@ groups:
         url: /docs/en-US/Get-FleetSoftwareInstall.html
       - title: Remove-FleetSoftwarePackage
         url: /docs/en-US/Remove-FleetSoftwarePackage.html
+      - title: New-FleetSoftwarePackage
+        url: /docs/en-US/New-FleetSoftwarePackage.html
+      - title: Set-FleetSoftwarePackage
+        url: /docs/en-US/Set-FleetSoftwarePackage.html
+      - title: Save-FleetSoftwarePackage
+        url: /docs/en-US/Save-FleetSoftwarePackage.html
+      - title: Get-FleetMaintainedApp
+        url: /docs/en-US/Get-FleetMaintainedApp.html
+      - title: Add-FleetMaintainedApp
+        url: /docs/en-US/Add-FleetMaintainedApp.html
+      - title: Get-FleetAppStoreApp
+        url: /docs/en-US/Get-FleetAppStoreApp.html
+      - title: Add-FleetAppStoreApp
+        url: /docs/en-US/Add-FleetAppStoreApp.html
+      - title: Set-FleetAppStoreApp
+        url: /docs/en-US/Set-FleetAppStoreApp.html
+      - title: Get-FleetPatchDeadline
+        url: /docs/en-US/Get-FleetPatchDeadline.html
+      - title: Set-FleetPatchDeadline
+        url: /docs/en-US/Set-FleetPatchDeadline.html
       - title: Get-FleetSelfServiceCategory
         url: /docs/en-US/Get-FleetSelfServiceCategory.html
       - title: New-FleetSelfServiceCategory
@@ -88,15 +126,102 @@ groups:
         url: /docs/en-US/Set-FleetTeam.html
       - title: Remove-FleetTeam
         url: /docs/en-US/Remove-FleetTeam.html
+      - title: Add-FleetTeamUser
+        url: /docs/en-US/Add-FleetTeamUser.html
+      - title: Set-FleetTeamAgentOption
+        url: /docs/en-US/Set-FleetTeamAgentOption.html
 
   - title: Scripts
     items:
       - title: Get-FleetScript
         url: /docs/en-US/Get-FleetScript.html
+      - title: New-FleetScript
+        url: /docs/en-US/New-FleetScript.html
+      - title: Set-FleetScript
+        url: /docs/en-US/Set-FleetScript.html
       - title: Invoke-FleetScript
         url: /docs/en-US/Invoke-FleetScript.html
+      - title: Get-FleetScriptResult
+        url: /docs/en-US/Get-FleetScriptResult.html
+      - title: Start-FleetScriptBatch
+        url: /docs/en-US/Start-FleetScriptBatch.html
+      - title: Get-FleetScriptBatch
+        url: /docs/en-US/Get-FleetScriptBatch.html
+      - title: Stop-FleetScriptBatch
+        url: /docs/en-US/Stop-FleetScriptBatch.html
       - title: Remove-FleetScript
         url: /docs/en-US/Remove-FleetScript.html
+
+  - title: Configuration profiles
+    items:
+      - title: Get-FleetConfigurationProfile
+        url: /docs/en-US/Get-FleetConfigurationProfile.html
+      - title: New-FleetConfigurationProfile
+        url: /docs/en-US/New-FleetConfigurationProfile.html
+      - title: Set-FleetConfigurationProfile
+        url: /docs/en-US/Set-FleetConfigurationProfile.html
+      - title: Remove-FleetConfigurationProfile
+        url: /docs/en-US/Remove-FleetConfigurationProfile.html
+      - title: Sync-FleetConfigurationProfile
+        url: /docs/en-US/Sync-FleetConfigurationProfile.html
+      - title: Send-FleetConfigurationProfile
+        url: /docs/en-US/Send-FleetConfigurationProfile.html
+      - title: Install-FleetConfigurationProfile
+        url: /docs/en-US/Install-FleetConfigurationProfile.html
+      - title: Uninstall-FleetConfigurationProfile
+        url: /docs/en-US/Uninstall-FleetConfigurationProfile.html
+
+  - title: Setup experience
+    items:
+      - title: Get-FleetSetupExperienceSoftware
+        url: /docs/en-US/Get-FleetSetupExperienceSoftware.html
+      - title: Set-FleetSetupExperienceSoftware
+        url: /docs/en-US/Set-FleetSetupExperienceSoftware.html
+      - title: Get-FleetSetupExperienceScript
+        url: /docs/en-US/Get-FleetSetupExperienceScript.html
+      - title: Set-FleetSetupExperienceScript
+        url: /docs/en-US/Set-FleetSetupExperienceScript.html
+      - title: Remove-FleetSetupExperienceScript
+        url: /docs/en-US/Remove-FleetSetupExperienceScript.html
+      - title: Get-FleetEula
+        url: /docs/en-US/Get-FleetEula.html
+      - title: Set-FleetEula
+        url: /docs/en-US/Set-FleetEula.html
+      - title: Remove-FleetEula
+        url: /docs/en-US/Remove-FleetEula.html
+      - title: Get-FleetBootstrapPackage
+        url: /docs/en-US/Get-FleetBootstrapPackage.html
+      - title: Set-FleetBootstrapPackage
+        url: /docs/en-US/Set-FleetBootstrapPackage.html
+      - title: Remove-FleetBootstrapPackage
+        url: /docs/en-US/Remove-FleetBootstrapPackage.html
+
+  - title: Enrollment and integrations
+    items:
+      - title: Get-FleetAppleBusinessToken
+        url: /docs/en-US/Get-FleetAppleBusinessToken.html
+      - title: Get-FleetVppToken
+        url: /docs/en-US/Get-FleetVppToken.html
+      - title: Add-FleetVppToken
+        url: /docs/en-US/Add-FleetVppToken.html
+      - title: Set-FleetVppTokenFleet
+        url: /docs/en-US/Set-FleetVppTokenFleet.html
+      - title: Get-FleetEnrollmentProfile
+        url: /docs/en-US/Get-FleetEnrollmentProfile.html
+      - title: Set-FleetEnrollmentProfile
+        url: /docs/en-US/Set-FleetEnrollmentProfile.html
+      - title: Remove-FleetEnrollmentProfile
+        url: /docs/en-US/Remove-FleetEnrollmentProfile.html
+      - title: Get-FleetGoogleConditionalAccess
+        url: /docs/en-US/Get-FleetGoogleConditionalAccess.html
+      - title: Set-FleetGoogleConditionalAccess
+        url: /docs/en-US/Set-FleetGoogleConditionalAccess.html
+      - title: Remove-FleetGoogleConditionalAccess
+        url: /docs/en-US/Remove-FleetGoogleConditionalAccess.html
+      - title: Get-FleetMicrosoftGraphCredential
+        url: /docs/en-US/Get-FleetMicrosoftGraphCredential.html
+      - title: Set-FleetMicrosoftGraphCredential
+        url: /docs/en-US/Set-FleetMicrosoftGraphCredential.html
 
   - title: MDM and SSO
     items:

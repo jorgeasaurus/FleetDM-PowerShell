@@ -139,10 +139,6 @@ function Get-FleetEnvelopeProperty {
         return $null
     }
 
-    if ($null -eq $Response.PSObject) {
-        return $null
-    }
-
     $property = $Response.PSObject.Properties[$Name]
     if ($null -eq $property) {
         return $null
@@ -161,8 +157,9 @@ function Resolve-FleetListValue {
     .DESCRIPTION
         The named key wins when it has records. A null or empty named key falls
         back to the alias when that alias has records. When both are populated,
-        the named key is returned once. When neither key exists, Found is false
-        and the caller keeps the original response.
+        the named key is returned once. A key that is present with a null value
+        is an empty list. When neither key exists, Found is false and the caller
+        keeps the original response.
     #>
     [CmdletBinding()]
     param(
@@ -196,6 +193,11 @@ function Resolve-FleetListValue {
     }
     elseif ($alias -and $null -ne $alias.Value) {
         $chosen = $alias.Value
+        $found = $true
+    }
+    elseif ($primary -or $alias) {
+        # Fleet sends an empty list as null. The key is present, so the
+        # list is empty rather than missing.
         $found = $true
     }
 

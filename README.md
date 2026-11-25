@@ -19,14 +19,16 @@ A PowerShell module for the FleetDM REST API, including Fleet Free and optional 
 
 ## Overview
 
-FleetDM-PowerShell provides a native PowerShell interface to Fleet. Free-tier cmdlets manage hosts, reports, policies, and software inventory. Premium cmdlets cover fleets, software installers, self-service categories, scripts, MDM lock and disk encryption, OS update enforcement, policy automations, calendar maintenance windows, and SSO just-in-time provisioning. Premium cmdlets call the same API and surface HTTP 402 from a Fleet Free server as a license error.
+FleetDM-PowerShell provides a native PowerShell interface to Fleet. Free-tier cmdlets manage hosts, reports, policies, scripts, configuration profiles, and software inventory. Premium cmdlets cover fleets, software installers and App Store apps, self-service categories, MDM lock and disk encryption, host secrets, setup experience, enrollment tokens, conditional access, OS update enforcement, policy automations, calendar maintenance windows, and SSO just-in-time provisioning. Premium cmdlets call the same API and surface HTTP 402 from a Fleet Free server as a license error.
 
 📚 **[View Full Documentation](https://jorgeasaurus.github.io/FleetDM-PowerShell/)** — install, connect, common tasks, and the cmdlet reference.
 
 ## Features
 
 - **Free Tier**: Hosts, reports, policies, and software inventory without a Premium license
-- **Fleet Premium**: Fleets, software install and uninstall, self-service categories, scripts, host lock and unlock, disk encryption, OS update enforcement, policy automations, calendar events, and SSO JIT provisioning
+- **Fleet Premium**: Fleets, software install and uninstall, installer and App Store uploads, self-service categories, scripts, host lock and unlock, host secrets, disk encryption, setup experience, enrollment tokens, conditional access, OS update enforcement, policy automations, calendar events, and SSO JIT provisioning
+- **Uploads and downloads**: Scripts, configuration profiles, installers, EULAs, and bootstrap packages use `multipart/form-data` on Windows PowerShell 5.1 and PowerShell 7. Installers stream from disk
+- **Error reasons**: Errors include Fleet's `errors[].reason` text
 - **Host Management**: Query, filter, and manage FleetDM hosts
 - **Query Execution**: Run live queries and saved reports against hosts
 - **Policy Management**: Create, update, and monitor compliance policies, including fleet policies
@@ -111,11 +113,19 @@ For detailed help and examples, visit the **[Online Documentation](https://jorge
 
 - `Connect-FleetDM` - Establish connection to FleetDM server
 - `Disconnect-FleetDM` - Disconnect from FleetDM server
+- `New-FleetUser` - Create a user. `-ApiOnly` returns `Token`
 
 ### Host Management
 
 - `Get-FleetHost` - Retrieve host information
 - `Remove-FleetHost` - Remove hosts from FleetDM
+- `Move-FleetHost` - Move every host that matches a filter to a fleet (Premium)
+- `Get-FleetHostSecret` - Read a disk encryption key, Recovery Lock password, or managed account password
+- `Reset-FleetHostSecret` - Rotate one of those secrets (Premium)
+- `Clear-FleetHostPasscode` - Clear an iOS or iPadOS passcode (Premium)
+- `Get-FleetMdmCommand` - List MDM commands for a host
+- `Stop-FleetHostMdmCommand` - Cancel a pending lock, wipe, or clear passcode command (Premium)
+- `Set-FleetHostNameTemplate` - Set or clear the Apple host name template (Premium)
 
 ### Query Management
 
@@ -128,14 +138,28 @@ For detailed help and examples, visit the **[Online Documentation](https://jorge
 - `Get-FleetPolicy` - Retrieve policies
 - `New-FleetPolicy` - Create new policies
 - `Set-FleetPolicy` - Update existing policies
+- `Remove-FleetPolicy` - Delete global or fleet policies. Fleet policies need Premium
+- `Get-FleetPolicyAutomation` - List policy automation activity
+- `Reset-FleetPolicyAutomation` - Reset failing-policy automation state
 
 ### Software Management
 
 - `Get-FleetSoftware` - Retrieve software inventory
+- `Get-FleetSoftwareTitle` - List software titles or get one by title ID
 - `Install-FleetSoftware` - Install a software title on a host (Premium)
 - `Uninstall-FleetSoftware` - Uninstall a software title from a host (Premium)
 - `Get-FleetSoftwareInstall` - Read a package install result (Premium)
 - `Remove-FleetSoftwarePackage` - Remove an installer from a fleet (Premium)
+- `New-FleetSoftwarePackage` - Upload an installer to a fleet (Premium)
+- `Set-FleetSoftwarePackage` - Update an installer, its scripts, or its targeting (Premium)
+- `Save-FleetSoftwarePackage` - Download an installer (Premium)
+- `Get-FleetMaintainedApp` - List Fleet-maintained apps
+- `Add-FleetMaintainedApp` - Add a Fleet-maintained app to a fleet (Premium)
+- `Get-FleetAppStoreApp` - List App Store apps that can be added to a fleet
+- `Add-FleetAppStoreApp` - Add an App Store or Google Play app (Premium)
+- `Set-FleetAppStoreApp` - Update an App Store app (Premium)
+- `Get-FleetPatchDeadline` - Read a fleet's patch deadline (Premium)
+- `Set-FleetPatchDeadline` - Set a fleet's patch deadline (Premium)
 - `Get-FleetSelfServiceCategory` - List self-service categories (Premium)
 - `New-FleetSelfServiceCategory` - Create a self-service category (Premium)
 - `Set-FleetSelfServiceCategory` - Rename a self-service category (Premium)
@@ -147,12 +171,46 @@ For detailed help and examples, visit the **[Online Documentation](https://jorge
 - `New-FleetTeam` - Create a fleet
 - `Set-FleetTeam` - Rename a fleet or assign hosts
 - `Remove-FleetTeam` - Delete a fleet
+- `Add-FleetTeamUser` - Add users to a fleet with a role
+- `Set-FleetTeamAgentOption` - Replace a fleet's agent options, with `-DryRun`
 
 ### Scripts
 
-- `Get-FleetScript` - List or get saved scripts. `-FleetId` requires Premium
+- `Get-FleetScript` - List or get saved scripts. `-Contents` downloads the text. `-FleetId` requires Premium
+- `New-FleetScript` - Upload a saved script. `-FleetId` requires Premium
+- `Set-FleetScript` - Replace a saved script's contents
 - `Invoke-FleetScript` - Run a script. `-FleetId` / `-ScriptName` requires Premium
+- `Get-FleetScriptResult` - Read a script result. `-Wait` polls for the exit code
+- `Start-FleetScriptBatch` - Run a saved script on many hosts by ID or filter
+- `Get-FleetScriptBatch` - List batch runs, get one, or list its hosts
+- `Stop-FleetScriptBatch` - Cancel a batch run
 - `Remove-FleetScript` - Delete a saved script
+
+### Configuration profiles
+
+- `Get-FleetConfigurationProfile` - List, get, or download profiles
+- `New-FleetConfigurationProfile` - Upload a profile. Labels and fleets need Premium
+- `Set-FleetConfigurationProfile` - Update a profile's file, labels, or self-service settings (Premium)
+- `Remove-FleetConfigurationProfile` - Delete a profile
+- `Sync-FleetConfigurationProfile` - Replace a fleet's whole profile set, with `-DryRun`
+- `Send-FleetConfigurationProfile` - Resend a profile to hosts
+- `Install-FleetConfigurationProfile` - Install a self-service profile on a host (Premium)
+- `Uninstall-FleetConfigurationProfile` - Remove a self-service profile from a host (Premium)
+
+### Setup experience (Premium)
+
+- `Get-FleetSetupExperienceSoftware` / `Set-FleetSetupExperienceSoftware` - Software installed during setup
+- `Get-FleetSetupExperienceScript` / `Set-FleetSetupExperienceScript` / `Remove-FleetSetupExperienceScript` - macOS setup script
+- `Get-FleetEula` / `Set-FleetEula` / `Remove-FleetEula` - Setup EULA
+- `Get-FleetBootstrapPackage` / `Set-FleetBootstrapPackage` / `Remove-FleetBootstrapPackage` - Bootstrap package
+
+### Enrollment and integrations (Premium)
+
+- `Get-FleetAppleBusinessToken` - List Apple Business tokens
+- `Get-FleetVppToken` / `Add-FleetVppToken` / `Set-FleetVppTokenFleet` - VPP tokens and their fleets
+- `Get-FleetEnrollmentProfile` / `Set-FleetEnrollmentProfile` / `Remove-FleetEnrollmentProfile` - Automatic enrollment (ADE) profiles
+- `Get-FleetGoogleConditionalAccess` / `Set-FleetGoogleConditionalAccess` / `Remove-FleetGoogleConditionalAccess` - Google conditional access
+- `Get-FleetMicrosoftGraphCredential` / `Set-FleetMicrosoftGraphCredential` - Autopilot Microsoft Graph credentials
 
 ### MDM and automations (Premium)
 
@@ -164,8 +222,6 @@ For detailed help and examples, visit the **[Online Documentation](https://jorge
 - `Set-FleetDiskEncryption` - Enforce disk encryption
 - `Set-FleetOsUpdate` - Enforce macOS, iOS, iPadOS, or Windows updates
 - `Set-FleetCalendarEvent` - Enable calendar maintenance windows for a fleet
-- `Get-FleetPolicyAutomation` - List policy automation activity
-- `Reset-FleetPolicyAutomation` - Reset failing-policy automation state. `-FleetId` requires Premium
 - `Set-FleetJitProvisioning` - Enable SSO just-in-time user provisioning
 
 ### Advanced
@@ -310,7 +366,7 @@ $apiUser = New-FleetUser -Name "module-test" -Email "api@example.com" -Password 
 3. **Create API-only users** for automation (requires admin access)
 4. **Rotate tokens regularly**
 5. **Use least-privilege principles** for API users
-6. **Verbose logs are redacted.** `-Verbose`, transcripts, and CI logs redact `password`, token fields, and `Authorization` bearer values at any nesting depth. `New-FleetUser` still sends the password to Fleet. Redaction does not change the request URI sent to Fleet. Do not put a secret in `Invoke-FleetDMMethod -Endpoint`: that cmdlet writes the endpoint string to the verbose log before redaction.
+6. **Verbose logs are redacted.** `-Verbose`, transcripts, and CI logs redact `password`, token fields, `service_account_key`, `client_secret`, `private_key`, and `Authorization` bearer values at any nesting depth. Multipart uploads log field names and byte counts only. `Get-FleetHostSecret` returns the secret in its output, so treat that output as a credential. `New-FleetUser` still sends the password to Fleet. Redaction does not change the request URI sent to Fleet. Do not put a secret in `Invoke-FleetDMMethod -Endpoint`: that cmdlet writes the endpoint string to the verbose log before redaction.
 
 ## Development
 
@@ -345,7 +401,9 @@ Invoke-Pester -CodeCoverage @('Public\*.ps1', 'Private\*.ps1')
 ## Limitations
 
 - **Premium license**: Fleet, installer, self-service, MDM, calendar, and JIT cmdlets return a license error on Fleet Free (HTTP 402). Wiping macOS, Windows, iOS, iPadOS, Linux, or personal Android also requires Premium. Company-owned Android wipe is available in Fleet Free
-- **Scripts**: Running a script by ID or contents is available in Fleet Free. Targeting a fleet with `-FleetId` requires Premium
+- **Scripts**: Running a script by ID or contents is available in Fleet Free. Targeting a fleet with `-FleetId` requires Premium. A host needs fleetd with scripts enabled; otherwise Fleet answers HTTP 422
+- **MDM features**: Configuration profiles, EULAs, bootstrap packages, enrollment profiles, App Store apps, MDM commands, and host secrets need Apple or Windows MDM turned on in Fleet. Without it Fleet answers HTTP 400, and the module shows Fleet's reason
+- **Windows PowerShell 5.1 uploads**: Installers stream from disk into a temporary multipart file. Windows PowerShell 5.1 may buffer the request body in memory while it sends it
 - **WebSocket connections**: Live campaign rows are not available via REST. Target host IDs to receive results in the session
 - **Direct query results**: Only available when targeting specific host IDs
   - Queries using `-Label` or `-All` return campaign info only
@@ -437,6 +495,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Version History
 
+### 2.3.0 - Premium admin cmdlets and multipart uploads
+
+- Added `Remove-FleetPolicy` and Fleet's `errors[].reason` text in error messages, including a new HTTP 422 message
+- Added multipart upload and file download support for Windows PowerShell 5.1 and PowerShell 7
+- Added cmdlets for scripts and batch runs, configuration profiles, software packages and App Store apps, host secrets and MDM commands, setup experience and bootstrap packages, enrollment tokens, conditional access, Graph credentials, and fleet admin settings
+- Fixed list cmdlets that returned the response envelope when Fleet sent an empty list as `null`
+
 ### 2.2.0 - Premium cmdlets and API fixes
 
 - Fixed pagination, query-string encoding, single-element JSON arrays, report routes, host filters, and Fleet Premium HTTP 402/403 errors
@@ -459,7 +524,19 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [x] **Free Tier Focus**: Module optimized for FleetDM Free Tier users
 - [x] **Simplified Authentication**: Removed complex SecretManagement dependencies
 - [x] **High Test Coverage**: Achieved 98%+ test pass rate
+- [x] **Premium admin coverage**: Scripts, profiles, installers, setup experience, host secrets, enrollment tokens, and fleet admin settings
 - [ ] Add more granular error handling
 - [ ] Add performance optimizations for large fleets
 - [ ] Create advanced reporting cmdlets
 - [ ] Add support for additional Free Tier features as FleetDM evolves
+
+These routes stay on `Invoke-FleetDMMethod`:
+
+- SCIM users and the MCP endpoint
+- Certificate authorities and certificate requests, whose bodies differ per CA type
+- Raw MDM commands (`commands/run`), MDM command results, and turning off a host's MDM
+- Removing users from a fleet (`DELETE fleets/:id/users`), which Fleet documents without parameters
+- Enroll secrets, `PATCH setup_experience`, bootstrap package status and token downloads, and resending a host name template
+- Software icons, Android web apps, and staged uploads (`upload_id`)
+- Configuration profile summaries and per-profile status, and Fleet Desktop `device/:token` routes
+- Apple Business and VPP token renewal or deletion, which Fleet does not document yet

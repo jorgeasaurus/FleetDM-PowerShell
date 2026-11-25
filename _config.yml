@@ -4,7 +4,7 @@
 # during the Documentation workflow.
 title: FleetDM-PowerShell
 description: PowerShell module for the Fleet REST API. Install, connect, common tasks, and the cmdlet reference.
-version: "2.2.0"
+version: "2.3.0"
 baseurl: "/FleetDM-PowerShell"
 url: "https://jorgeasaurus.github.io"
 
