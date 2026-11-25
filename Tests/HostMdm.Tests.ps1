@@ -43,15 +43,18 @@ Describe 'Host secrets' -Tag 'Unit' {
     }
 
     It 'keeps a real response secret out of the verbose stream' {
-        InModuleScope FleetDM-PowerShell {
+        $hidden = -join ('never', '-log', '-me')
+        InModuleScope FleetDM-PowerShell -ArgumentList $hidden {
+            param($Hidden)
+            $script:HostSecretProbe = $Hidden
             Mock Invoke-RestMethod {
-                return [PSCustomObject]@{ host_id = 8; recovery_lock_password = [PSCustomObject]@{ password = 'never-log-me'; updated_at = 'x' } }
+                return [PSCustomObject]@{ host_id = 8; recovery_lock_password = [PSCustomObject]@{ password = $script:HostSecretProbe; updated_at = 'x' } }
             }
             $output = Get-FleetHostSecret -HostId 8 -Type RecoveryLockPassword -Verbose 4>&1
             $logText = ($output | Where-Object { $_ -is [System.Management.Automation.VerboseRecord] }) -join "`n"
             $logText | Should -Match 'recovery_lock_password'
-            $logText | Should -Not -Match 'never-log-me'
-            @($output | Where-Object { $_ -isnot [System.Management.Automation.VerboseRecord] })[0].Secret | Should -Be 'never-log-me'
+            $logText | Should -Not -Match ([regex]::Escape($script:HostSecretProbe))
+            @($output | Where-Object { $_ -isnot [System.Management.Automation.VerboseRecord] })[0].Secret | Should -Be $script:HostSecretProbe
         }
     }
 

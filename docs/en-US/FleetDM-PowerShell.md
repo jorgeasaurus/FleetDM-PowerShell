@@ -2,7 +2,7 @@
 Module Name: FleetDM-PowerShell
 Module Guid: a7c4b8f3-2d1e-4f5a-9c8b-1e3d5a7f9b2c
 Download Help Link: https://github.com/Jorgeasaurus/FleetDM-PowerShell/wiki
-Help Version: 2.3.0.0
+Help Version: 2.4.0.0
 Locale: en-US
 ---
 
@@ -69,7 +69,7 @@ Set-FleetJitProvisioning -Enabled $true
 
 `-MacOsMinimumVersion latest` requires `-MacOsDeadlineDays`. Calendar, script, and software policy automations require `-FleetId`.
 
-## Examples for cmdlets added in 2.3.0
+## Examples for cmdlets added in 2.4.0
 
 Uploads are sent as `multipart/form-data` on both Windows PowerShell 5.1 and PowerShell 7. Installers and bootstrap packages stream from disk. Error messages now include Fleet's `errors[].reason`.
 

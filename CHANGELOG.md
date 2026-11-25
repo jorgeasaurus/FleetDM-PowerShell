@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.3.0
+## 2.4.0
 
 ### Fixed
 
@@ -10,7 +10,7 @@
 - `Tests/RunAllTests.ps1 -CodeCoverage` measures `Private` as well as `Public`. The `Public/**/*.ps1` pattern matched no files under `Private`.
 - `Set-FleetSetupExperienceSoftware` throws when the pipeline gives it no titles. An empty list is a clear, and only `-Clear` sends one.
 - `Start-FleetScriptBatch` throws when the pipeline gives it no host IDs. An empty `host_ids` list is not sent.
-- JSON bodies keep one-element arrays that sit inside a `ConvertFrom-Json` object. Windows PowerShell 5.1 used to store those ADE profile and agent-option arrays as scalars.
+- JSON bodies keep one-element arrays nested in an object. ADE profiles and agent options parsed on Windows PowerShell 5.1 stay arrays instead of becoming scalars.
 
 ### Added
 
@@ -36,6 +36,23 @@ These routes reached Fleet's handler and returned Fleet's own 4xx reason. That p
 Covered only by mocked and HTTP listener tests: a successful package upload, update, and byte-identical download, the EULA file download, `Get-FleetScriptResult -Wait` reaching an exit code, setup software with a real title, and what VPP `-AllFleets` and `-NoFleet` do to fleet access. Windows PowerShell 5.1 was not run. The new files pass PSScriptAnalyzer's 5.1 syntax check.
 
 The plan's remaining items stay on `Invoke-FleetDMMethod`: SCIM, the MCP endpoint, certificate authorities, raw MDM commands, and the other routes listed in the README roadmap.
+
+## 2.3.1
+
+### Fixed
+
+- `Invoke-FleetDMMethod` returns the response envelope once. Nested hosts, policies, queries, software, users, teams, and labels still receive their `FleetDM.*` type names, and those objects are no longer written to the pipeline ahead of the envelope. Responses with no matching key, `-Raw`, and `-FollowPagination` are unchanged.
+
+## 2.3.0
+
+### Added
+
+- Requests retry HTTP 429 for every method and HTTP 502, 503, and 504 for GET. `-MaxRetries` defaults to 3 extra attempts. A 429, and a gateway response that includes one, waits for the `Retry-After` header (an integer or an HTTP-date) or `retry after: Ns` in the error. Gateway retries otherwise wait 2, 4, then 8 seconds. `-MaxRetryDelaySeconds` defaults to 120 and caps every wait, including a huge `Retry-After`. A wait below 1 second uses the backoff. `-RetryNonIdempotent` also retries POST, PUT, PATCH, and DELETE after a gateway error. `Invoke-FleetDMMethod` forwards these parameters when the caller sets them. Each retry writes a verbose line, and the last error is thrown when the attempts are used up.
+
+### Fixed
+
+- `Connect-FleetDM` connects when a token can call `GET /api/v1/fleet/me` but `GET /api/v1/fleet/version` returns 403. The stored version is `$null`. `-SkipVersionCheck` skips the version call. HTTP 401 is still `Authentication failed`. Other cmdlets do not read the stored version.
+- When `/me` is the connection check, the response must be the current user (id and email). An HTML body or a user without those fields does not connect. HTTP 403 from `/me` says the token needs `GET /api/v1/fleet/me` allowed.
 
 ## 2.2.1
 

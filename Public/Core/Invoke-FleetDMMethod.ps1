@@ -21,6 +21,21 @@ function Invoke-FleetDMMethod {
     
     .PARAMETER FollowPagination
         Automatically follow pagination to retrieve all results (for GET requests)
+
+    .PARAMETER MaxRetries
+        Maximum number of additional attempts after the first request. The default
+        is 3 when this is omitted. HTTP 429 is retried for every method. HTTP 502,
+        503, and 504 are retried for GET. Gateway retries wait 2, 4, then 8 seconds.
+        A 429, and a gateway response that sends one, waits for Retry-After or for
+        "retry after: Ns" in the error. Each wait is capped by -MaxRetryDelaySeconds.
+
+    .PARAMETER MaxRetryDelaySeconds
+        Longest wait before one retry, in seconds. The default is 120 when this
+        is omitted. Retry-After and the backoff cannot sleep longer than this.
+
+    .PARAMETER RetryNonIdempotent
+        Also retry POST, PUT, PATCH, and DELETE after HTTP 502, 503, or 504.
+        HTTP 429 is retried without this switch.
     
     .PARAMETER Raw
         Return the raw response object without processing
@@ -53,6 +68,17 @@ function Invoke-FleetDMMethod {
         Invoke-FleetDMMethod -Endpoint "labels" -Method GET -FollowPagination
         
         Gets all labels, automatically following pagination
+
+    .EXAMPLE
+        Invoke-FleetDMMethod -Endpoint "hosts" -MaxRetries 0
+
+        Sends one GET and does not retry HTTP 429 or a gateway error.
+
+    .EXAMPLE
+        Invoke-FleetDMMethod -Endpoint "hosts/123/refetch" -Method POST -RetryNonIdempotent
+
+        Retries that POST after HTTP 502, 503, or 504. Leave the switch off when
+        repeating the call could apply the change twice. HTTP 429 is retried either way.
     
     .LINK
         https://fleetdm.com/docs/using-fleet/rest-api
@@ -75,6 +101,17 @@ function Invoke-FleetDMMethod {
         
         [Parameter()]
         [switch]$FollowPagination,
+
+        [Parameter()]
+        [ValidateRange(0, 100)]
+        [int]$MaxRetries = 3,
+
+        [Parameter()]
+        [ValidateRange(1, 2147483)]
+        [int]$MaxRetryDelaySeconds = 120,
+
+        [Parameter()]
+        [switch]$RetryNonIdempotent,
         
         [Parameter()]
         [switch]$Raw
@@ -108,6 +145,20 @@ function Invoke-FleetDMMethod {
         if ($FollowPagination) {
             $requestParams['FollowPagination'] = $true
         }
+
+        # Pass these only when the caller set them. The request function owns the
+        # defaults, and callers that mock it declare a fixed parameter list.
+        if ($PSBoundParameters.ContainsKey('MaxRetries')) {
+            $requestParams['MaxRetries'] = $MaxRetries
+        }
+
+        if ($PSBoundParameters.ContainsKey('MaxRetryDelaySeconds')) {
+            $requestParams['MaxRetryDelaySeconds'] = $MaxRetryDelaySeconds
+        }
+
+        if ($RetryNonIdempotent) {
+            $requestParams['RetryNonIdempotent'] = $true
+        }
         
         if ($Method -ne 'GET' -and -not $PSCmdlet.ShouldProcess($Endpoint, $Method)) {
             return
@@ -118,48 +169,50 @@ function Invoke-FleetDMMethod {
             
             Write-Verbose "Request completed successfully"
             
-            # Try to add type information if we can identify the object type
+            # Try to add type information if we can identify the object type.
+            # Add-FleetTypeName mutates each object and also passes it through.
+            # Discard that output so callers receive only the envelope below.
             if (-not $Raw -and $result) {
                 # For collections, add type information to the nested data
                 if ($result.PSObject.Properties.Name -contains 'hosts') {
-                    $result.hosts | Add-FleetTypeName -TypeName 'FleetDM.Host'
+                    $null = $result.hosts | Add-FleetTypeName -TypeName 'FleetDM.Host'
                 }
                 elseif ($result.PSObject.Properties.Name -contains 'policies') {
-                    $result.policies | Add-FleetTypeName -TypeName 'FleetDM.Policy'
+                    $null = $result.policies | Add-FleetTypeName -TypeName 'FleetDM.Policy'
                 }
                 elseif ($result.PSObject.Properties.Name -contains 'queries') {
-                    $result.queries | Add-FleetTypeName -TypeName 'FleetDM.Query'
+                    $null = $result.queries | Add-FleetTypeName -TypeName 'FleetDM.Query'
                 }
                 elseif ($result.PSObject.Properties.Name -contains 'software') {
-                    $result.software | Add-FleetTypeName -TypeName 'FleetDM.Software'
+                    $null = $result.software | Add-FleetTypeName -TypeName 'FleetDM.Software'
                 }
                 elseif ($result.PSObject.Properties.Name -contains 'users') {
-                    $result.users | Add-FleetTypeName -TypeName 'FleetDM.User'
+                    $null = $result.users | Add-FleetTypeName -TypeName 'FleetDM.User'
                 }
                 elseif ($result.PSObject.Properties.Name -contains 'teams') {
-                    $result.teams | Add-FleetTypeName -TypeName 'FleetDM.Team'
+                    $null = $result.teams | Add-FleetTypeName -TypeName 'FleetDM.Team'
                 }
                 elseif ($result.PSObject.Properties.Name -contains 'labels') {
-                    $result.labels | Add-FleetTypeName -TypeName 'FleetDM.Label'
+                    $null = $result.labels | Add-FleetTypeName -TypeName 'FleetDM.Label'
                 }
                 # For single objects
                 elseif ($result.PSObject.Properties.Name -contains 'host') {
-                    $result.host | Add-FleetTypeName -TypeName 'FleetDM.Host'
+                    $null = $result.host | Add-FleetTypeName -TypeName 'FleetDM.Host'
                 }
                 elseif ($result.PSObject.Properties.Name -contains 'policy') {
-                    $result.policy | Add-FleetTypeName -TypeName 'FleetDM.Policy'
+                    $null = $result.policy | Add-FleetTypeName -TypeName 'FleetDM.Policy'
                 }
                 elseif ($result.PSObject.Properties.Name -contains 'query') {
-                    $result.query | Add-FleetTypeName -TypeName 'FleetDM.Query'
+                    $null = $result.query | Add-FleetTypeName -TypeName 'FleetDM.Query'
                 }
                 elseif ($result.PSObject.Properties.Name -contains 'user') {
-                    $result.user | Add-FleetTypeName -TypeName 'FleetDM.User'
+                    $null = $result.user | Add-FleetTypeName -TypeName 'FleetDM.User'
                 }
                 elseif ($result.PSObject.Properties.Name -contains 'team') {
-                    $result.team | Add-FleetTypeName -TypeName 'FleetDM.Team'
+                    $null = $result.team | Add-FleetTypeName -TypeName 'FleetDM.Team'
                 }
                 elseif ($result.PSObject.Properties.Name -contains 'label') {
-                    $result.label | Add-FleetTypeName -TypeName 'FleetDM.Label'
+                    $null = $result.label | Add-FleetTypeName -TypeName 'FleetDM.Label'
                 }
             }
             

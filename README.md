@@ -314,7 +314,11 @@ Invoke-FleetQuery -Query "SELECT * FROM system_info;" -HostId $hostIds
 
 ## Error Handling
 
-The module provides detailed error messages and supports standard PowerShell error handling:
+The module retries a failed request before it throws:
+
+- **HTTP 429** is retried for every method. The wait is the `Retry-After` header when Fleet sends one (a number of seconds or an HTTP-date), otherwise `retry after: Ns` in the error. If neither is present, or the value is below 1 second, the wait is 2 seconds, then 4, then 8.
+- **HTTP 502, 503, and 504** are retried for GET. A `Retry-After` on those responses is used. Otherwise the wait is the same 2, 4, and 8 second backoff. POST, PUT, PATCH, and DELETE are not retried, so a software install or other change is not sent twice.
+- The default is **3** extra attempts (`-MaxRetries`). Every wait is capped at **120** seconds (`-MaxRetryDelaySeconds`). `-Verbose` writes one line per retry. The last error is thrown after that. Pass `-MaxRetries 0` to `Invoke-FleetDMMethod` to disable retries for one call. Pass `-RetryNonIdempotent` only when repeating a POST, PUT, PATCH, or DELETE is safe.
 
 ```powershell
 try {
@@ -323,6 +327,10 @@ try {
 catch {
     Write-Error "Failed to get host: $_"
 }
+
+# One direct call with no retry, or an explicit opt-in for a non-GET gateway retry.
+Invoke-FleetDMMethod -Endpoint "hosts" -MaxRetries 0
+Invoke-FleetDMMethod -Endpoint "hosts/123/refetch" -Method POST -RetryNonIdempotent
 ```
 
 ## Authentication
@@ -340,6 +348,13 @@ The most secure method is using API tokens:
 # Store token securely
 $token = Read-Host "Enter API Token" -AsSecureString
 Connect-FleetDM -BaseUri "https://fleet.example.com" -ApiToken $token
+```
+
+An API-only user can be limited to specific endpoints. A token that can call `GET /api/v1/fleet/me` still connects when `GET /api/v1/fleet/version` returns 403. The connection version is null. `-SkipVersionCheck` skips the version call. `/me` must return the current user.
+
+```powershell
+$token = Read-Host "Enter API Token" -AsSecureString
+Connect-FleetDM -BaseUri "https://fleet.example.com" -ApiToken $token -SkipVersionCheck
 ```
 
 ### Username/Password
@@ -495,12 +510,25 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Version History
 
-### 2.3.0 - Premium admin cmdlets and multipart uploads
+### 2.4.0 - Premium admin cmdlets and multipart uploads
 
 - Added `Remove-FleetPolicy` and Fleet's `errors[].reason` text in error messages, including a new HTTP 422 message
 - Added multipart upload and file download support for Windows PowerShell 5.1 and PowerShell 7
 - Added cmdlets for scripts and batch runs, configuration profiles, software packages and App Store apps, host secrets and MDM commands, setup experience and bootstrap packages, enrollment tokens, conditional access, Graph credentials, and fleet admin settings
 - Fixed list cmdlets that returned the response envelope when Fleet sent an empty list as `null`
+
+### 2.3.1
+
+- `Invoke-FleetDMMethod` returns the response envelope once. Nested objects still receive their `FleetDM.*` type names, and they are no longer written to the pipeline ahead of the envelope.
+
+### 2.3.0
+
+- `Connect-FleetDM` connects when an API-only token can call `GET /api/v1/fleet/me` but `GET /api/v1/fleet/version` returns 403. The stored version is null. `-SkipVersionCheck` skips the version call.
+- Requests retry HTTP 429 for every method, and HTTP 502, 503, and 504 for GET. The default is 3 extra attempts, capped at 120 seconds. `-RetryNonIdempotent` opts in for other methods.
+
+### 2.2.1
+
+- `Get-FleetTeam` returns fleets when Fleet sends the same list under both `teams` and `fleets`
 
 ### 2.2.0 - Premium cmdlets and API fixes
 

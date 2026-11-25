@@ -42,7 +42,9 @@ function Set-FleetEnrollmentProfile {
 
     $file = Get-FleetUploadFile -Path $Path
     try {
-        $enrollmentProfile = [System.Text.Encoding]::UTF8.GetString($file.Bytes).TrimStart([char]0xFEFF) | ConvertFrom-Json -ErrorAction Stop
+        # ConvertFrom-Json on Windows PowerShell 5.1 stores a one-element array as a scalar.
+        $profileText = [System.Text.Encoding]::UTF8.GetString($file.Bytes).TrimStart([char]0xFEFF)
+        $enrollmentProfile = ConvertFrom-FleetJson -Json $profileText
     }
     catch {
         throw "Enrollment profile '$Path' is not valid JSON: $($_.Exception.Message)"

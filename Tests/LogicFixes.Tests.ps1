@@ -36,14 +36,39 @@ Describe 'Request and pagination fixes' -Tag 'Unit' {
         }
     }
 
-    It 'keeps a one-element array nested in a ConvertFrom-Json object' {
+    It 'keeps a one-element array nested in a PSCustomObject' {
         InModuleScope FleetDM-PowerShell {
-            $profile = '{"is_mandatory":true,"skip_setup_items":["Location"],"profile_name":"ADE"}' | ConvertFrom-Json
-            $options = '{"config":{"decorators":{"load":["SELECT 1"]}}}' | ConvertFrom-Json
+            $profile = [PSCustomObject]@{
+                is_mandatory = $true
+                skip_setup_items = @('Location')
+                profile_name = 'ADE'
+            }
+            $options = [PSCustomObject]@{
+                config = [PSCustomObject]@{
+                    decorators = [PSCustomObject]@{ load = @('SELECT 1') }
+                }
+            }
             $profileJson = ConvertTo-FleetJson -InputObject @{ enrollment_profile = $profile }
             $optionsJson = ConvertTo-FleetJson -InputObject @{ config = $options.config }
             $profileJson | Should -Match '"skip_setup_items":\["Location"\]'
             $profileJson | Should -Match '"is_mandatory":true'
+            $optionsJson | Should -Match '"load":\["SELECT 1"\]'
+            $profile.skip_setup_items -is [System.Array] | Should -BeTrue
+        }
+    }
+
+    It 'keeps a one-element array parsed from JSON' {
+        InModuleScope FleetDM-PowerShell {
+            $profile = ConvertFrom-FleetJson -Json '{"is_mandatory":true,"skip_setup_items":["Location"],"profile_name":"ADE"}'
+            $options = ConvertFrom-FleetJson -Json '{"config":{"decorators":{"load":["SELECT 1"]}}}'
+            $profile.skip_setup_items -is [System.Array] | Should -BeTrue
+            $profile.skip_setup_items.Count | Should -Be 1
+            $profile.skip_setup_items[0] | Should -Be 'Location'
+            $options.config.decorators.load -is [System.Array] | Should -BeTrue
+            $options.config.decorators.load.Count | Should -Be 1
+            $profileJson = ConvertTo-FleetJson -InputObject @{ enrollment_profile = $profile }
+            $optionsJson = ConvertTo-FleetJson -InputObject @{ config = $options.config }
+            $profileJson | Should -Match '"skip_setup_items":\["Location"\]'
             $optionsJson | Should -Match '"load":\["SELECT 1"\]'
         }
     }

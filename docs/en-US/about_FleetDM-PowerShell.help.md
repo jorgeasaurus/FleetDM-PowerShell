@@ -75,7 +75,7 @@ The module supports multiple authentication methods:
 
 1. **API Token**: Recommended for automation and scripting. API-only tokens do not expire.
 2. **Email and password**: Same login as `fleetctl login --email --password`. SSO users cannot use a password.
-3. **API-only users**: `New-FleetUser -ApiOnly` returns `Token`. That user cannot sign in to the Fleet UI.
+3. **API-only users**: `New-FleetUser -ApiOnly` returns `Token`. That user cannot sign in to the Fleet UI. If the user is limited to specific endpoints, a token that can call `GET /api/v1/fleet/me` still connects when `GET /api/v1/fleet/version` returns 403. The connection version is null. `-SkipVersionCheck` skips the version call. HTTP 401 is an authentication failure.
 
 For SSO-enabled environments, obtain an API token through the FleetDM UI.
 
@@ -83,12 +83,13 @@ Verbose request and connection logs redact `password`, token fields, `service_ac
 
 ## Error Handling
 
-The module provides comprehensive error handling with detailed messages for:
-- Authentication failures
-- Rate limiting
-- Permission issues
-- Network errors
-- API validation errors
+The module provides detailed messages for authentication failures, rate limiting, permission issues, network errors, and API validation errors.
+
+Requests retry before those messages are thrown:
+
+- HTTP 429 is retried for every method. The wait is the `Retry-After` header (seconds or an HTTP-date), or `retry after: Ns` in the error. Otherwise the wait is 2 seconds, then 4, then 8.
+- HTTP 502, 503, and 504 are retried for GET. A `Retry-After` on those responses is used; otherwise they use that same backoff. POST, PUT, PATCH, and DELETE are not retried unless you pass `-RetryNonIdempotent` to `Invoke-FleetDMMethod`.
+- The default is 3 extra attempts. Each wait is capped at 120 seconds (`-MaxRetryDelaySeconds`). A value below 1 second uses the backoff. `-MaxRetries 0` turns retries off for that direct call. `-Verbose` writes one line for each retry. The last error is thrown when the attempts are used up.
 
 Fleet puts the useful text of most 4xx responses in `errors[].reason`. The module appends it to the error after `Reason:` on HTTP 400, 403, 404, 409, 422, and other statuses. For example, a script run on a host without fleetd fails with `Fleet could not process the request (HTTP 422). Error: Unprocessable Entity Reason: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled.` The Fleet Premium and access denied messages keep their wording.
 

@@ -74,6 +74,15 @@ Describe 'Fleet admin cmdlets' -Tag 'Unit' {
             }
         }
 
+        It 'keeps a one-element nested array from a JSON string' {
+            Set-FleetTeamAgentOption -FleetId 1 -AgentOptions '{"config":{"decorators":{"load":["SELECT 1"]}}}' -Confirm:$false | Out-Null
+            Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -Times 1 -Exactly -ParameterFilter {
+                $Body.config.decorators.load -is [System.Array] -and
+                $Body.config.decorators.load.Count -eq 1 -and
+                $Body.config.decorators.load[0] -eq 'SELECT 1'
+            }
+        }
+
         It 'does not reuse -Force for the force query flag' {
             (Get-Command Set-FleetTeamAgentOption).Parameters.Keys | Should -Not -Contain 'Force'
         }
@@ -183,6 +192,27 @@ Describe 'Fleet admin request bodies on the wire' -Tag 'Unit' {
             $parsed.PSObject.Properties.Name | Should -Contain 'name_template'
             $parsed.name_template | Should -BeExactly ''
             $parsed.fleet_id | Should -Be 5
+        }
+    }
+
+    It 'sends a one-element agent-option array as a JSON array' {
+        InModuleScope FleetDM-PowerShell {
+            $script:agentOptionBody = $null
+            Mock Invoke-RestMethod {
+                $script:agentOptionBody = $Body
+                return [PSCustomObject]@{ team = [PSCustomObject]@{ id = 1 } }
+            }
+            $object = [PSCustomObject]@{
+                config = [PSCustomObject]@{
+                    decorators = [PSCustomObject]@{ load = @('SELECT 1') }
+                }
+            }
+            Set-FleetTeamAgentOption -FleetId 1 -AgentOptions $object -Confirm:$false | Out-Null
+            $script:agentOptionBody | Should -Match '"load":\["SELECT 1"\]'
+            $script:agentOptionBody | Should -Not -Match '"load":"SELECT 1"'
+            Set-FleetTeamAgentOption -FleetId 1 -AgentOptions '{"config":{"decorators":{"load":["SELECT 1"]}}}' -Confirm:$false | Out-Null
+            $script:agentOptionBody | Should -Match '"load":\["SELECT 1"\]'
+            $script:agentOptionBody | Should -Not -Match '"load":"SELECT 1"'
         }
     }
 }

@@ -53,6 +53,82 @@ function ConvertTo-FleetJson {
     return ($InputObject | ConvertTo-Json -Compress -Depth $Depth)
 }
 
+function ConvertFrom-FleetJsonValue {
+    <#
+    .SYNOPSIS
+        Copies a parser value into a PSCustomObject without dropping arrays.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [AllowNull()]
+        [object]$Value
+    )
+
+    if ($null -eq $Value -or $Value -is [string] -or $Value -is [ValueType]) {
+        return $Value
+    }
+
+    if ($Value -is [System.Collections.IDictionary]) {
+        $obj = New-Object PSCustomObject
+        foreach ($key in @($Value.Keys)) {
+            $child = ConvertFrom-FleetJsonValue -Value $Value[$key]
+            $obj | Add-Member -NotePropertyName ([string]$key) -NotePropertyValue $child
+        }
+        return $obj
+    }
+
+    if ($Value -is [System.Collections.IEnumerable]) {
+        $items = New-Object System.Collections.Generic.List[object]
+        foreach ($item in $Value) {
+            $items.Add((ConvertFrom-FleetJsonValue -Value $item))
+        }
+        return $items.ToArray()
+    }
+
+    return $Value
+}
+
+function ConvertFrom-FleetJson {
+    <#
+    .SYNOPSIS
+        Parses JSON and keeps one-element arrays.
+
+    .DESCRIPTION
+        Windows PowerShell 5.1 ConvertFrom-Json turns a one-element array into a
+        scalar, including an array nested in an object. ADE profiles and agent
+        options would then be stored without those arrays. PowerShell 7 already
+        keeps them, so this uses ConvertFrom-Json there.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [AllowEmptyString()]
+        [string]$Json
+    )
+
+    if ($PSVersionTable.PSVersion.Major -ge 6) {
+        $parsed = $Json | ConvertFrom-Json -ErrorAction Stop
+    }
+    else {
+        if (-not ('System.Web.Script.Serialization.JavaScriptSerializer' -as [type])) {
+            Add-Type -AssemblyName System.Web.Extensions
+        }
+
+        $serializer = New-Object System.Web.Script.Serialization.JavaScriptSerializer
+        $serializer.MaxJsonLength = [int]::MaxValue
+        $serializer.RecurseLimit = 128
+        $parsed = ConvertFrom-FleetJsonValue -Value $serializer.DeserializeObject($Json)
+    }
+
+    # A top-level array must stay one pipeline object.
+    if ($parsed -is [System.Array]) {
+        return , $parsed
+    }
+
+    return $parsed
+}
+
 function ConvertTo-FleetQueryString {
     <#
     .SYNOPSIS

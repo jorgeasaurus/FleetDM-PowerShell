@@ -56,7 +56,8 @@ function Set-FleetTeamAgentOption {
     $options = $AgentOptions
     if ($options -is [string]) {
         try {
-            $options = $options | ConvertFrom-Json -ErrorAction Stop
+            # ConvertFrom-Json on Windows PowerShell 5.1 stores a one-element array as a scalar.
+            $options = ConvertFrom-FleetJson -Json $options
         }
         catch {
             throw 'AgentOptions is not valid JSON.'

@@ -139,7 +139,9 @@ Describe 'Automatic enrollment profiles' -Tag 'Unit' {
         Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -Times 1 -Exactly -ParameterFilter {
             $Endpoint -eq 'enrollment_profiles/automatic' -and $Method -eq 'POST' -and $Body.fleet_id -eq 2 -and
             $Body.name -eq 'dep_profile.json' -and $Body.enrollment_profile.is_mandatory -eq $true -and
-            (@($Body.enrollment_profile.skip_setup_items) -join ',') -eq 'Location'
+            $Body.enrollment_profile.skip_setup_items -is [System.Array] -and
+            $Body.enrollment_profile.skip_setup_items.Count -eq 1 -and
+            $Body.enrollment_profile.skip_setup_items[0] -eq 'Location'
         }
         Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -Times 1 -Exactly -ParameterFilter {
             $Body.name -eq 'Custom' -and -not $Body.ContainsKey('fleet_id')
@@ -167,6 +169,21 @@ Describe 'Automatic enrollment profiles' -Tag 'Unit' {
         Set-FleetEnrollmentProfile -Path $script:DepProfile -WhatIf
         Remove-FleetEnrollmentProfile -FleetId 2 -Force -WhatIf
         Should -Invoke Invoke-FleetDMRequest -ModuleName FleetDM-PowerShell -Times 0
+    }
+}
+
+Describe 'Automatic enrollment profile on the wire' -Tag 'Unit' {
+    It 'sends a one-element skip_setup_items list as a JSON array' {
+        InModuleScope FleetDM-PowerShell -ArgumentList $script:DepProfile {
+            param($ProfilePath)
+            Mock Invoke-RestMethod {
+                $script:EnrollmentWire = $Body
+                return [PSCustomObject]@{ fleet_id = 2; name = 'dep_profile.json' }
+            }
+            Set-FleetEnrollmentProfile -Path $ProfilePath -FleetId 2 -Confirm:$false | Out-Null
+            $script:EnrollmentWire | Should -Match '"skip_setup_items":\["Location"\]'
+            $script:EnrollmentWire | Should -Not -Match '"skip_setup_items":"Location"'
+        }
     }
 }
 

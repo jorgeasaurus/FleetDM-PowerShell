@@ -1,6 +1,6 @@
 @{
     RootModule = 'FleetDM-PowerShell.psm1'
-    ModuleVersion = '2.3.0'
+    ModuleVersion = '2.4.0'
     GUID = 'a7c4b8f3-2d1e-4f5a-9c8b-1e3d5a7f9b2c'
     Author = 'Jorge Suarez'
     CompanyName = 'Jorgeasaurus'
@@ -126,7 +126,7 @@
             LicenseUri = 'https://github.com/Jorgeasaurus/FleetDM-PowerShell/blob/main/LICENSE'
             ProjectUri = 'https://github.com/Jorgeasaurus/FleetDM-PowerShell'
             IconUri = ''
-            ReleaseNotes = 'Version 2.3.0 - Adds 58 cmdlets, Fleet error reasons in messages, and multipart uploads and downloads for Windows PowerShell 5.1 and PowerShell 7. New cmdlets cover policy deletion, scripts and batch runs, configuration profiles, software packages and App Store apps, host secrets and MDM commands, setup experience, enrollment tokens, conditional access, Graph credentials, and fleet admin settings. Empty lists sent as null no longer come back as a record. See CHANGELOG.md.'
+            ReleaseNotes = 'Version 2.4.0 - Adds 58 cmdlets, Fleet error reasons in messages, and multipart uploads and downloads for Windows PowerShell 5.1 and PowerShell 7. New cmdlets cover policy deletion, scripts and batch runs, configuration profiles, software packages and App Store apps, host secrets and MDM commands, setup experience, enrollment tokens, conditional access, Graph credentials, and fleet admin settings. Empty lists sent as null no longer come back as a record. See CHANGELOG.md.'
             Prerelease = ''
             RequireLicenseAcceptance = $false
             ExternalModuleDependencies = @()
