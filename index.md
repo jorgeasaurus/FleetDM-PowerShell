@@ -5,7 +5,7 @@ title: FleetDM-PowerShell
 
 # FleetDM-PowerShell
 
-<p class="lead">The module calls the Fleet REST API from Windows PowerShell 5.1 and PowerShell 7. Version 2.3.1 returns one object from Invoke-FleetDMMethod when it adds type names. Version 2.3.0 retries HTTP 429 and gateway errors, and connects an API-only token when GET /version returns 403. Version 2.2.0 adds Fleet Premium cmdlets, host wipe, and secret redaction in verbose logs.</p>
+<p class="lead">The module calls the Fleet REST API from Windows PowerShell 5.1 and PowerShell 7. Version 2.4.0 adds policy deletion, script and installer uploads, configuration profiles, setup experience, host secrets, enrollment tokens, and the HTTP error reason from Fleet. Version 2.3.1 returns one object from Invoke-FleetDMMethod when it adds type names. Version 2.3.0 retries HTTP 429 and gateway errors, and connects an API-only token when GET /version returns 403. Version 2.2.0 adds Fleet Premium cmdlets, host wipe, and secret redaction in verbose logs.</p>
 
 <div class="callouts">
 <div class="callout" markdown="1">
@@ -200,6 +200,29 @@ Set-FleetJitProvisioning -Enabled $true
 
 Calendar, script, and software automations on a policy require `-FleetId` and Fleet Premium. `Reset-FleetPolicyAutomation` sends `policy_ids` only. `-FleetId` on that command checks that the policies belong to those fleets. It does not ask Fleet to reset every policy on the fleet.
 
+### Scripts, profiles, and installers
+
+```powershell
+$script = New-FleetScript -Path ./collect-logs.sh -FleetId 2
+Get-FleetScript -Id $script.id -Contents
+Set-FleetScript -Id $script.id -Path ./collect-logs.sh
+Start-FleetScriptBatch -ScriptId $script.id -Filter @{ label_id = 7 } | Get-FleetScriptBatch
+Invoke-FleetScript -HostId 10 -ScriptId $script.id | Get-FleetScriptResult -Wait
+
+New-FleetConfigurationProfile -Path ./passcode.mobileconfig -FleetId 2 -LabelsIncludeAny 'Engineering'
+Sync-FleetConfigurationProfile -Path ./profiles/*.mobileconfig -FleetId 2 -DryRun
+
+$package = New-FleetSoftwarePackage -Path ./FalconSensor.pkg -FleetId 2 -SelfService
+Set-FleetSoftwarePackage -SoftwareTitleId $package.title_id -FleetId 2 -Categories 'Security'
+Save-FleetSoftwarePackage -SoftwareTitleId $package.title_id -FleetId 2 -OutFile ./FalconSensor.pkg
+
+Get-FleetPolicy -FleetId 2 -Name 'Legacy' | Remove-FleetPolicy
+```
+
+Uploads use `multipart/form-data` on Windows PowerShell 5.1 and PowerShell 7. Installers and bootstrap packages are streamed from disk. `Sync-FleetConfigurationProfile` replaces the whole set, so profiles you leave out are removed; run it with `-DryRun` first. `Set-FleetConfigurationProfile` keeps the current labels unless you pass a label parameter or `-ClearLabels`.
+
+Errors carry Fleet's reason. A script run on a host without fleetd reports `Fleet could not process the request (HTTP 422). Error: Unprocessable Entity Reason: Scripts are disabled for this host.` instead of the status text alone.
+
 ## Cmdlet reference {#reference}
 
 Premium is marked on the command that needs a Fleet Premium license. The same pages are linked from the sidebar.
@@ -220,12 +243,20 @@ Premium is marked on the command that needs a Fleet Premium license. The same pa
 - [Unlock-FleetHost](docs/en-US/Unlock-FleetHost.md) — Unlock a host (Premium)
 - [Invoke-FleetHostWipe](docs/en-US/Invoke-FleetHostWipe.md) — Queue a wipe
 - [Get-FleetHostWipeStatus](docs/en-US/Get-FleetHostWipeStatus.md) — Read wipe progress from the host MDM fields
+- [Move-FleetHost](docs/en-US/Move-FleetHost.md) — Move every host that matches a filter to a fleet (Premium)
+- [Get-FleetHostSecret](docs/en-US/Get-FleetHostSecret.md) — Read a disk encryption key, Recovery Lock password, or managed account password
+- [Reset-FleetHostSecret](docs/en-US/Reset-FleetHostSecret.md) — Rotate one of those secrets (Premium)
+- [Clear-FleetHostPasscode](docs/en-US/Clear-FleetHostPasscode.md) — Clear an iOS or iPadOS passcode (Premium)
+- [Get-FleetMdmCommand](docs/en-US/Get-FleetMdmCommand.md) — List MDM commands for a host
+- [Stop-FleetHostMdmCommand](docs/en-US/Stop-FleetHostMdmCommand.md) — Cancel a pending lock, wipe, or clear passcode command (Premium)
+- [Set-FleetHostNameTemplate](docs/en-US/Set-FleetHostNameTemplate.md) — Set or clear the Apple host name template (Premium)
 
 ### Policies
 
 - [Get-FleetPolicy](docs/en-US/Get-FleetPolicy.md) — Get policy information
 - [New-FleetPolicy](docs/en-US/New-FleetPolicy.md) — Create a new policy
 - [Set-FleetPolicy](docs/en-US/Set-FleetPolicy.md) — Update an existing policy
+- [Remove-FleetPolicy](docs/en-US/Remove-FleetPolicy.md) — Delete global or fleet policies. Fleet policies need Premium
 - [Get-FleetPolicyAutomation](docs/en-US/Get-FleetPolicyAutomation.md) — List automation activity for a policy
 - [Reset-FleetPolicyAutomation](docs/en-US/Reset-FleetPolicyAutomation.md) — Reset failing-policy automation state
 
@@ -238,10 +269,21 @@ Premium is marked on the command that needs a Fleet Premium license. The same pa
 ### Software
 
 - [Get-FleetSoftware](docs/en-US/Get-FleetSoftware.md) — Get software inventory
+- [Get-FleetSoftwareTitle](docs/en-US/Get-FleetSoftwareTitle.md) — List software titles or get one title by title ID
 - [Install-FleetSoftware](docs/en-US/Install-FleetSoftware.md) — Install a software title on a host (Premium)
 - [Uninstall-FleetSoftware](docs/en-US/Uninstall-FleetSoftware.md) — Uninstall a software title from a host (Premium)
 - [Get-FleetSoftwareInstall](docs/en-US/Get-FleetSoftwareInstall.md) — Read a package install result (Premium)
 - [Remove-FleetSoftwarePackage](docs/en-US/Remove-FleetSoftwarePackage.md) — Remove an installer from a fleet (Premium)
+- [New-FleetSoftwarePackage](docs/en-US/New-FleetSoftwarePackage.md) — Upload an installer to a fleet (Premium)
+- [Set-FleetSoftwarePackage](docs/en-US/Set-FleetSoftwarePackage.md) — Update an installer, its scripts, or its targeting (Premium)
+- [Save-FleetSoftwarePackage](docs/en-US/Save-FleetSoftwarePackage.md) — Download an installer (Premium)
+- [Get-FleetMaintainedApp](docs/en-US/Get-FleetMaintainedApp.md) — List Fleet-maintained apps
+- [Add-FleetMaintainedApp](docs/en-US/Add-FleetMaintainedApp.md) — Add a Fleet-maintained app to a fleet (Premium)
+- [Get-FleetAppStoreApp](docs/en-US/Get-FleetAppStoreApp.md) — List App Store apps that can be added to a fleet
+- [Add-FleetAppStoreApp](docs/en-US/Add-FleetAppStoreApp.md) — Add an App Store or Google Play app (Premium)
+- [Set-FleetAppStoreApp](docs/en-US/Set-FleetAppStoreApp.md) — Update an App Store app (Premium)
+- [Get-FleetPatchDeadline](docs/en-US/Get-FleetPatchDeadline.md) — Read a fleet's patch deadline (Premium)
+- [Set-FleetPatchDeadline](docs/en-US/Set-FleetPatchDeadline.md) — Set a fleet's patch deadline days and time (Premium)
 - [Get-FleetSelfServiceCategory](docs/en-US/Get-FleetSelfServiceCategory.md) — List self-service categories (Premium)
 - [New-FleetSelfServiceCategory](docs/en-US/New-FleetSelfServiceCategory.md) — Create a self-service category (Premium)
 - [Set-FleetSelfServiceCategory](docs/en-US/Set-FleetSelfServiceCategory.md) — Rename a self-service category (Premium)
@@ -253,12 +295,60 @@ Premium is marked on the command that needs a Fleet Premium license. The same pa
 - [New-FleetTeam](docs/en-US/New-FleetTeam.md) — Create a fleet
 - [Set-FleetTeam](docs/en-US/Set-FleetTeam.md) — Rename a fleet or assign hosts
 - [Remove-FleetTeam](docs/en-US/Remove-FleetTeam.md) — Delete a fleet
+- [Add-FleetTeamUser](docs/en-US/Add-FleetTeamUser.md) — Add users to a fleet with a role
+- [Set-FleetTeamAgentOption](docs/en-US/Set-FleetTeamAgentOption.md) — Replace a fleet's agent options, with -DryRun
 
 ### Scripts
 
 - [Get-FleetScript](docs/en-US/Get-FleetScript.md) — List saved scripts or get one script
+- [New-FleetScript](docs/en-US/New-FleetScript.md) — Upload a saved script. Fleet scripts need Premium
+- [Set-FleetScript](docs/en-US/Set-FleetScript.md) — Replace a saved script's contents
 - [Invoke-FleetScript](docs/en-US/Invoke-FleetScript.md) — Run a script on a host
+- [Get-FleetScriptResult](docs/en-US/Get-FleetScriptResult.md) — Read a script result, with -Wait
+- [Start-FleetScriptBatch](docs/en-US/Start-FleetScriptBatch.md) — Run a saved script on many hosts
+- [Get-FleetScriptBatch](docs/en-US/Get-FleetScriptBatch.md) — List batch runs, get one, or list its hosts
+- [Stop-FleetScriptBatch](docs/en-US/Stop-FleetScriptBatch.md) — Cancel a batch run
 - [Remove-FleetScript](docs/en-US/Remove-FleetScript.md) — Delete a saved script
+
+### Configuration profiles
+
+- [Get-FleetConfigurationProfile](docs/en-US/Get-FleetConfigurationProfile.md) — List, get, or download profiles
+- [New-FleetConfigurationProfile](docs/en-US/New-FleetConfigurationProfile.md) — Upload a profile. Labels and fleets need Premium
+- [Set-FleetConfigurationProfile](docs/en-US/Set-FleetConfigurationProfile.md) — Update a profile's file, labels, or self-service settings (Premium)
+- [Remove-FleetConfigurationProfile](docs/en-US/Remove-FleetConfigurationProfile.md) — Delete a profile
+- [Sync-FleetConfigurationProfile](docs/en-US/Sync-FleetConfigurationProfile.md) — Replace a fleet's whole profile set, with -DryRun
+- [Send-FleetConfigurationProfile](docs/en-US/Send-FleetConfigurationProfile.md) — Resend a profile to hosts
+- [Install-FleetConfigurationProfile](docs/en-US/Install-FleetConfigurationProfile.md) — Install a self-service profile on a host (Premium)
+- [Uninstall-FleetConfigurationProfile](docs/en-US/Uninstall-FleetConfigurationProfile.md) — Remove a self-service profile from a host (Premium)
+
+### Setup experience (Premium)
+
+- [Get-FleetSetupExperienceSoftware](docs/en-US/Get-FleetSetupExperienceSoftware.md) — List setup software
+- [Set-FleetSetupExperienceSoftware](docs/en-US/Set-FleetSetupExperienceSoftware.md) — Set or clear setup software for a platform
+- [Get-FleetSetupExperienceScript](docs/en-US/Get-FleetSetupExperienceScript.md) — Get the setup script or its contents
+- [Set-FleetSetupExperienceScript](docs/en-US/Set-FleetSetupExperienceScript.md) — Upload the setup script
+- [Remove-FleetSetupExperienceScript](docs/en-US/Remove-FleetSetupExperienceScript.md) — Delete the setup script
+- [Get-FleetEula](docs/en-US/Get-FleetEula.md) — Get EULA metadata or download the file
+- [Set-FleetEula](docs/en-US/Set-FleetEula.md) — Upload the EULA
+- [Remove-FleetEula](docs/en-US/Remove-FleetEula.md) — Delete the EULA
+- [Get-FleetBootstrapPackage](docs/en-US/Get-FleetBootstrapPackage.md) — Get bootstrap package metadata
+- [Set-FleetBootstrapPackage](docs/en-US/Set-FleetBootstrapPackage.md) — Upload a bootstrap package
+- [Remove-FleetBootstrapPackage](docs/en-US/Remove-FleetBootstrapPackage.md) — Delete a bootstrap package
+
+### Enrollment and integrations (Premium)
+
+- [Get-FleetAppleBusinessToken](docs/en-US/Get-FleetAppleBusinessToken.md) — List Apple Business tokens
+- [Get-FleetVppToken](docs/en-US/Get-FleetVppToken.md) — List VPP tokens
+- [Add-FleetVppToken](docs/en-US/Add-FleetVppToken.md) — Upload a VPP content token
+- [Set-FleetVppTokenFleet](docs/en-US/Set-FleetVppTokenFleet.md) — Choose which fleets use a VPP token
+- [Get-FleetEnrollmentProfile](docs/en-US/Get-FleetEnrollmentProfile.md) — Get the custom or default ADE profile
+- [Set-FleetEnrollmentProfile](docs/en-US/Set-FleetEnrollmentProfile.md) — Set a fleet's custom ADE profile
+- [Remove-FleetEnrollmentProfile](docs/en-US/Remove-FleetEnrollmentProfile.md) — Delete a fleet's custom ADE profile
+- [Get-FleetGoogleConditionalAccess](docs/en-US/Get-FleetGoogleConditionalAccess.md) — Read Google conditional access settings
+- [Set-FleetGoogleConditionalAccess](docs/en-US/Set-FleetGoogleConditionalAccess.md) — Connect or update Google conditional access
+- [Remove-FleetGoogleConditionalAccess](docs/en-US/Remove-FleetGoogleConditionalAccess.md) — Disconnect Google conditional access
+- [Get-FleetMicrosoftGraphCredential](docs/en-US/Get-FleetMicrosoftGraphCredential.md) — List Autopilot Graph credentials
+- [Set-FleetMicrosoftGraphCredential](docs/en-US/Set-FleetMicrosoftGraphCredential.md) — Replace or clear the Graph credential, with -DryRun
 
 ### MDM and SSO (Premium)
 

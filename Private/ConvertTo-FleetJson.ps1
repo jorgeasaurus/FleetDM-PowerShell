@@ -22,7 +22,8 @@ function ConvertTo-FleetJson {
     }
 
     # ConvertTo-Json unwraps a one-element array on Windows PowerShell 5.1.
-    # Dictionaries and lists are written here. Leaves go to ConvertTo-Json.
+    # Dictionaries, lists, and ConvertFrom-Json objects are written here.
+    # Leaves go to ConvertTo-Json.
     if ($InputObject -is [System.Collections.IDictionary]) {
         $pairs = foreach ($key in @($InputObject.Keys)) {
             '{0}:{1}' -f ($key | ConvertTo-Json -Compress), (ConvertTo-FleetJson -InputObject $InputObject[$key] -Depth $Depth)
@@ -37,7 +38,145 @@ function ConvertTo-FleetJson {
         return '[' + (@($items) -join ',') + ']'
     }
 
-    return ($InputObject | ConvertTo-Json -Compress -Depth $Depth)
+    if ($InputObject -is [System.Management.Automation.PSCustomObject]) {
+        # Match ConvertTo-Json -Depth. A deeper object is truncated so a
+        # 100-level tree is not written onto the wire. Depth 0 is invalid
+        # on Windows PowerShell 5.1, whose minimum is 1.
+        if ($Depth -le 0) {
+            return ($InputObject | ConvertTo-Json -Compress -Depth 1)
+        }
+        $pairs = foreach ($property in $InputObject.PSObject.Properties) {
+            '{0}:{1}' -f ($property.Name | ConvertTo-Json -Compress), (ConvertTo-FleetJson -InputObject $property.Value -Depth ($Depth - 1))
+        }
+        return '{' + (@($pairs) -join ',') + '}'
+    }
+
+    # Windows PowerShell 5.1 rejects ConvertTo-Json -Depth 0. A scalar does not
+    # need a deeper walk, so the floor is 1.
+    $leafDepth = $Depth
+    if ($leafDepth -lt 1) {
+        $leafDepth = 1
+    }
+    return (ConvertTo-Json -InputObject $InputObject -Compress -Depth $leafDepth)
+}
+
+function ConvertFrom-FleetJsonValue {
+    <#
+    .SYNOPSIS
+        Copies a parser value into a PSCustomObject without dropping arrays.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [AllowNull()]
+        [object]$Value
+    )
+
+    if ($null -eq $Value -or $Value -is [string] -or $Value -is [ValueType]) {
+        return $Value
+    }
+
+    if ($Value -is [System.Collections.IDictionary]) {
+        $obj = New-Object PSCustomObject
+        foreach ($key in @($Value.Keys)) {
+            $child = ConvertFrom-FleetJsonValue -Value $Value[$key]
+            $obj | Add-Member -NotePropertyName ([string]$key) -NotePropertyValue $child
+        }
+        return $obj
+    }
+
+    if ($Value -is [System.Collections.IEnumerable]) {
+        $items = New-Object System.Collections.Generic.List[object]
+        foreach ($item in $Value) {
+            $items.Add((ConvertFrom-FleetJsonValue -Value $item))
+        }
+        return $items.ToArray()
+    }
+
+    return $Value
+}
+
+function ConvertFrom-FleetJson {
+    <#
+    .SYNOPSIS
+        Parses JSON and keeps one-element arrays.
+
+    .DESCRIPTION
+        Windows PowerShell 5.1 ConvertFrom-Json turns a one-element array into a
+        scalar, including an array nested in an object. ADE profiles and agent
+        options would then be stored without those arrays. PowerShell 7 already
+        keeps them, so this uses ConvertFrom-Json there.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [AllowEmptyString()]
+        [string]$Json
+    )
+
+    if ($PSVersionTable.PSVersion.Major -ge 6) {
+        $parsed = $Json | ConvertFrom-Json -ErrorAction Stop
+    }
+    else {
+        if (-not ('System.Web.Script.Serialization.JavaScriptSerializer' -as [type])) {
+            Add-Type -AssemblyName System.Web.Extensions
+        }
+
+        $serializer = New-Object System.Web.Script.Serialization.JavaScriptSerializer
+        $serializer.MaxJsonLength = [int]::MaxValue
+        $serializer.RecurseLimit = 128
+        $parsed = ConvertFrom-FleetJsonValue -Value $serializer.DeserializeObject($Json)
+    }
+
+    # A top-level array must stay one pipeline object.
+    if ($parsed -is [System.Array]) {
+        return , $parsed
+    }
+
+    return $parsed
+}
+
+function Copy-FleetJsonArray {
+    <#
+    .SYNOPSIS
+        Stores a collection in a dictionary without dropping the array.
+
+    .DESCRIPTION
+        Windows PowerShell 5.1 turns a one-element array into a scalar, and an
+        empty array into $null, when the value is written through a hashtable
+        indexer. Fleet rejects a scalar where it expects a JSON array.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [System.Collections.IDictionary]$Target,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Name,
+
+        [Parameter(Mandatory)]
+        [AllowEmptyCollection()]
+        [object]$Value
+    )
+
+    $array = @($Value)
+    $Target[$Name] = $array
+    $stored = $Target[$Name]
+    $storedCount = if ($null -eq $stored) {
+        -1
+    }
+    elseif ($stored -is [System.Array]) {
+        $stored.Count
+    }
+    else {
+        1
+    }
+
+    # A one-element wrapper is unwrapped back to the original array.
+    if ($stored -isnot [System.Array] -or $storedCount -ne $array.Count) {
+        $Target[$Name] = , $array
+    }
 }
 
 function ConvertTo-FleetQueryString {

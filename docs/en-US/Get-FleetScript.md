@@ -20,11 +20,12 @@ Get-FleetScript [-FleetId <Int32>] [-Page <Int32>] [-PerPage <Int32>] [-Progress
 
 ### ById
 ```
-Get-FleetScript -Id <Int32> [-ProgressAction <ActionPreference>] [<CommonParameters>]
+Get-FleetScript -Id <Int32> [-Contents] [-ProgressAction <ActionPreference>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
 Sends GET /api/v1/fleet/scripts or GET /api/v1/fleet/scripts/{id}.
+-Contents sends GET /api/v1/fleet/scripts/{id}?alt=media and returns the script text decoded as UTF-8.
 Listing scripts for unassigned hosts is available in Fleet Free.
 Filtering with FleetId requires Fleet Premium.
 
@@ -38,6 +39,11 @@ Get-FleetScript
 ### EXAMPLE 2
 ```
 Get-FleetScript -Id 12
+```
+
+### EXAMPLE 3
+```
+Get-FleetScript -Id 12 -Contents | Set-Content ./collect.sh
 ```
 
 ## PARAMETERS
@@ -54,6 +60,21 @@ Required: True
 Position: Named
 Default value: 0
 Accept pipeline input: True (ByPropertyName, ByValue)
+Accept wildcard characters: False
+```
+
+### -Contents
+Returns the script text instead of the script metadata.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: ById
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
 Accept wildcard characters: False
 ```
 

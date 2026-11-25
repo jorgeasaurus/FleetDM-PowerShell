@@ -1,3 +1,12 @@
+# One list of field names whose values never reach the verbose log.
+# Every redaction pattern below is built from it.
+$script:FleetSecretLogNames = @(
+    'current_password', 'new_password', 'enroll_secret', 'api_token', 'access_token',
+    'authorization', 'password', 'token', 'node_key', 'secret', 'service_account_key',
+    'client_secret', 'private_key'
+)
+$script:FleetSecretLogPattern = '(?:' + ($script:FleetSecretLogNames -join '|') + ')'
+
 function Test-FleetSecretLogName {
     <#
     .SYNOPSIS
@@ -13,7 +22,7 @@ function Test-FleetSecretLogName {
         return $false
     }
 
-    return [bool]($Name -match '^(?i)(?:current_password|new_password|api_token|authorization|password|token|secret)$')
+    return [bool]($Name -match ('^(?i)' + $script:FleetSecretLogPattern + '$'))
 }
 
 function Get-FleetRedactedUriText {
@@ -33,7 +42,7 @@ function Get-FleetRedactedUriText {
 
     return [regex]::Replace(
         $Text,
-        '(?i)([?&](?:current_password|new_password|enroll_secret|api_token|access_token|authorization|password|token|node_key|secret)=)[^&\s#"]*',
+        ('(?i)([?&]' + $script:FleetSecretLogPattern + '=)[^&\s#"]*'),
         '${1}[REDACTED]'
     )
 }
@@ -61,7 +70,7 @@ function Format-FleetUnsafeSecretLiteral {
     # Query strings are masked separately. A preceding ? or & is not a PowerShell literal.
     $match = [regex]::Match(
         $Text,
-        '(?i)(?<![A-Za-z0-9_?&-])(?:current_password|new_password|api_token|authorization|password|token|secret)\s*='
+        ('(?i)(?<![A-Za-z0-9_?&-])' + $script:FleetSecretLogPattern + '\s*=')
     )
     if (-not $match.Success) {
         return $Text
@@ -219,12 +228,12 @@ function Get-FleetRedactedLogText {
 
     $redacted = [regex]::Replace(
         $Text,
-        '(?i)("(?:current_password|new_password|api_token|authorization|password|token|secret)"\s*:\s*")((?:\\.|[^"\\])*)(")',
+        ('(?i)("' + $script:FleetSecretLogPattern + '"\s*:\s*")((?:\\.|[^"\\])*)(")'),
         '${1}[REDACTED]${3}'
     )
     $redacted = [regex]::Replace(
         $redacted,
-        '(?i)("Key"\s*:\s*"(?:current_password|new_password|api_token|authorization|password|token|secret)"\s*,\s*"Value"\s*:\s*")((?:\\.|[^"\\])*)(")',
+        ('(?i)("Key"\s*:\s*"' + $script:FleetSecretLogPattern + '"\s*,\s*"Value"\s*:\s*")((?:\\.|[^"\\])*)(")'),
         '${1}[REDACTED]${3}'
     )
     $redacted = Get-FleetRedactedUriText -Text $redacted
@@ -644,7 +653,8 @@ function Invoke-FleetDMRequest {
         The HTTP method to use (GET, POST, PUT, PATCH, DELETE)
     
     .PARAMETER Body
-        Hashtable containing the request body data (will be converted to JSON)
+        Hashtable containing the request body data (will be converted to JSON).
+        An empty hashtable is sent as {} on POST, PUT, PATCH, and DELETE, and not sent on GET.
     
     .PARAMETER QueryParameters
         Hashtable of query parameters to append to the URI
@@ -652,11 +662,21 @@ function Invoke-FleetDMRequest {
     .PARAMETER FollowPagination
         If specified, automatically follows pagination to retrieve all results
 
+    .PARAMETER Form
+        Sends multipart/form-data instead of JSON. Values are strings, numbers,
+        booleans, or collections of those. A file part is a dictionary with
+        FileName and Bytes, or FileName and Path. A Path part is streamed from
+        disk through a temporary file. The verbose log shows field names and
+        byte counts only.
+
+    .PARAMETER OutFile
+        Writes the response body to this path instead of returning it.
+
     .PARAMETER MaxRetries
         Maximum number of additional attempts after the first request. The default
         is 3. HTTP 429 is retried for every method. A 429 waits for the Retry-After
         header or for "retry after: Ns" in the error, and otherwise waits 2, 4, then
-        8 seconds.         HTTP 502, 503, and 504 use that same backoff and are retried for
+        8 seconds. HTTP 502, 503, and 504 use that same backoff and are retried for
         GET only. A Retry-After on those responses is used instead of the backoff.
         Set this to 0 to disable retries.
 
@@ -685,6 +705,10 @@ function Invoke-FleetDMRequest {
         [hashtable]$QueryParameters,
         
         [switch]$FollowPagination,
+
+        [System.Collections.IDictionary]$Form,
+
+        [string]$OutFile,
 
         [ValidateRange(0, 100)]
         [int]$MaxRetries = 3,
@@ -735,10 +759,31 @@ function Invoke-FleetDMRequest {
         Write-Verbose "Request parameters: $(Get-FleetRedactedLogText -Text $requestParams)"
         # Add body if provided. The wire body stays depth-limited JSON.
         # The verbose line redacts a separate serialization of the original object.
-        if ($Body -and $Body.Count -gt 0) {
+        $multipart = $null
+        if ($Form) {
+            # The stored headers carry Content-Type: application/json. A
+            # multipart body needs its own boundary value.
+            $multipart = New-FleetMultipartContent -Form $Form
+            $requestParams['Headers'] = Copy-FleetHeaderWithoutContentType -Headers $script:FleetDMConnection.Headers
+            $requestParams['ContentType'] = $multipart.ContentType
+            if ($multipart.Path) {
+                $requestParams['InFile'] = $multipart.Path
+            }
+            else {
+                $requestParams['Body'] = $multipart.Bytes
+            }
+            Write-Verbose "Multipart form: $($multipart.Summary -join ', ')"
+        }
+        elseif ($null -ne $Body -and ($Body.Count -gt 0 -or $Method -ne 'GET')) {
+            # Fleet's JSON routes reject a missing body, so an empty body on a
+            # change is sent as {}. A GET with an empty body sends none.
             $jsonBody = ConvertTo-FleetJson -InputObject $Body -Depth 10
             $requestParams['Body'] = $jsonBody
             Write-Verbose "Request body: $(Get-FleetRedactedLogText -Text $Body)"
+        }
+        if ($OutFile) {
+            $requestParams['OutFile'] = $OutFile
+            Write-Verbose "Writing response to: $OutFile"
         }
         Write-Verbose "Sending request to FleetDM API"
         try {
@@ -829,6 +874,11 @@ function Invoke-FleetDMRequest {
             # Handle errors
             Resolve-FleetDMApiError -ErrorRecord $_ -MaxRetryDelaySeconds $MaxRetryDelaySeconds
         }
+        finally {
+            if ($multipart -and $multipart.Path) {
+                Remove-Item -LiteralPath $multipart.Path -Force -ErrorAction SilentlyContinue
+            }
+        }
     }
 }
 
@@ -891,6 +941,10 @@ function Resolve-FleetDMApiError {
             }
         }
         
+        # errors[].reason carries the useful text on most 4xx responses.
+        $reasonText = Format-FleetErrorReason -Errors $errorDetails -Message $errorMessage
+        $reasonSuffix = if ($reasonText) { " Reason: $reasonText" } else { '' }
+
         # Create error message based on status code
         $premiumText = "$errorMessage $($errorDetails | Out-String)"
         $isPremiumStatus = $statusCode -eq 402 -or (
@@ -918,21 +972,20 @@ function Resolve-FleetDMApiError {
                     throw "This feature requires a Fleet Premium license"
                 }
                 else {
-                    $fullMessage = "Bad Request: $errorMessage"
-                    if ($errorDetails) {
-                        $fullMessage += "`nDetails: $($errorDetails | ConvertTo-Json -Compress)"
-                    }
-                    throw $fullMessage
+                    throw "Bad Request: $errorMessage$reasonSuffix"
                 }
             }
             401 {
                 throw "Authentication failed. Your session may have expired. Please run Connect-FleetDM again."
             }
             403 {
-                throw "Access denied. You don't have permission to perform this operation. Error: $errorMessage"
+                throw "Access denied. You don't have permission to perform this operation. Error: $errorMessage$reasonSuffix"
             }
             404 {
-                throw "Resource not found. The requested item does not exist. Error: $errorMessage"
+                throw "Resource not found. The requested item does not exist. Error: $errorMessage$reasonSuffix"
+            }
+            422 {
+                throw "Fleet could not process the request (HTTP 422). Error: $errorMessage$reasonSuffix"
             }
             408 {
                 throw "Request timeout. The operation took too long to complete. Error: $errorMessage"
@@ -964,7 +1017,7 @@ function Resolve-FleetDMApiError {
                 throw "Gateway timeout. FleetDM service may be temporarily unavailable."
             }
             default {
-                throw "FleetDM API error (HTTP $statusCode): $errorMessage"
+                throw "FleetDM API error (HTTP $statusCode): $errorMessage$reasonSuffix"
             }
         }
     }

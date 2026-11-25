@@ -61,7 +61,9 @@ $pesterConfiguration.Filter.ExcludeTag = @('Integration', 'Manual')
 # Code coverage settings
 if ($CodeCoverage) {
     $pesterConfiguration.CodeCoverage.Enabled = $true
-    $pesterConfiguration.CodeCoverage.Path = Join-Path (Split-Path $TestPath -Parent) "Public" "**" "*.ps1"
+    # Wildcards do not recurse, so list every Public and Private file.
+    $moduleRoot = Split-Path $TestPath -Parent
+    $pesterConfiguration.CodeCoverage.Path = @(Get-ChildItem -Path (Join-Path $moduleRoot 'Public'), (Join-Path $moduleRoot 'Private') -Recurse -Filter '*.ps1' | ForEach-Object FullName)
     $pesterConfiguration.CodeCoverage.OutputFormat = 'JaCoCo'
     $pesterConfiguration.CodeCoverage.OutputPath = Join-Path $TestPath 'CodeCoverage.xml'
 }

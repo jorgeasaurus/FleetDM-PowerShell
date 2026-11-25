@@ -1,5 +1,43 @@
 # Changelog
 
+## 2.4.0
+
+### Fixed
+
+- Errors include Fleet's `errors[].reason` text after `Reason:` on HTTP 400, 403, 404, 409, 422, and other statuses. HTTP 422 has its own message. Before, a script run on a host without fleetd reported only `Unprocessable Entity`. The Fleet Premium and access denied wording is unchanged. The 400 message no longer appends the raw errors JSON.
+- List cmdlets return no records when Fleet sends an empty list as `null`, such as `"scripts": null`. Before, the response envelope came back as one record. An empty page body ends pagination instead of failing parameter binding.
+- An empty `-Body` on POST, PUT, PATCH, or DELETE is sent as `{}`. Fleet rejects a JSON route with no body (`Expected JSON Body`). GET still sends no body.
+- `Tests/RunAllTests.ps1 -CodeCoverage` measures `Private` as well as `Public`. The `Public/**/*.ps1` pattern matched no files under `Private`.
+- `Set-FleetSetupExperienceSoftware` throws when the pipeline gives it no titles. An empty list is a clear, and only `-Clear` sends one.
+- `Start-FleetScriptBatch` throws when the pipeline gives it no host IDs. An empty `host_ids` list is not sent.
+- JSON bodies keep one-element arrays nested in an object. ADE profiles and agent options parsed on Windows PowerShell 5.1 stay arrays instead of becoming scalars. A tree deeper than the JSON depth limit is truncated with `ConvertTo-Json -Depth 1`, because 5.1 rejects `-Depth 0`.
+- A one-element `host_ids`, label, or category list stays a JSON array when it is stored in a hashtable. Windows PowerShell 5.1 used to unwrap that assignment into a scalar. An empty filter collection is rejected. An empty `-FleetId` on `Set-FleetVppTokenFleet` throws instead of assigning the token to every fleet.
+
+### Added
+
+- `Remove-FleetPolicy` deletes global or fleet policies with `POST global/policies/delete` or `POST fleets/{id}/policies/delete`. Piped ids are sent in one request per fleet, and a piped global policy goes to the global route.
+- Multipart uploads and file downloads on Windows PowerShell 5.1 and PowerShell 7. The internal request function takes `-Form` and `-OutFile`. Installers and bootstrap packages stream from disk through a temporary file. The verbose log shows field names and byte counts only. Script text downloads are decoded as UTF-8.
+- Scripts: `New-FleetScript`, `Set-FleetScript`, `Get-FleetScript -Contents`, `Get-FleetScriptResult` (with `-Wait`), `Start-FleetScriptBatch`, `Get-FleetScriptBatch`, and `Stop-FleetScriptBatch`.
+- Configuration profiles: `Get-`, `New-`, `Set-`, `Remove-`, `Sync-`, `Send-`, `Install-`, and `Uninstall-FleetConfigurationProfile`. `Sync-FleetConfigurationProfile` replaces the whole set and supports `-DryRun`. `Set-FleetConfigurationProfile` re-sends the current labels unless a label parameter or `-ClearLabels` is passed, because Fleet resets targeting when a PATCH has no labels.
+- Software: `Get-FleetSoftwareTitle`, `New-`, `Set-`, and `Save-FleetSoftwarePackage`, `Get-` and `Add-FleetMaintainedApp`, `Get-`, `Add-`, and `Set-FleetAppStoreApp`, and `Get-` and `Set-FleetPatchDeadline`. These take software title ids, not the version ids that `Get-FleetSoftware -Id` reads.
+- Host MDM: `Get-` and `Reset-FleetHostSecret` for disk encryption keys, Recovery Lock passwords, and managed account passwords, plus `Clear-FleetHostPasscode`, `Get-FleetMdmCommand`, and `Stop-FleetHostMdmCommand`. Secret values are not written to the verbose log.
+- Setup experience: `Get-` and `Set-FleetSetupExperienceSoftware`, `Get-`, `Set-`, and `Remove-FleetSetupExperienceScript`, `Get-`, `Set-`, and `Remove-FleetEula`, and `Get-`, `Set-`, and `Remove-FleetBootstrapPackage`.
+- Enrollment and integrations: `Get-FleetAppleBusinessToken`, `Get-FleetVppToken`, `Add-FleetVppToken`, `Set-FleetVppTokenFleet` (`-FleetId`, `-AllFleets`, or `-NoFleet`), `Get-`, `Set-`, and `Remove-FleetEnrollmentProfile`, `Get-`, `Set-`, and `Remove-FleetGoogleConditionalAccess`, and `Get-` and `Set-FleetMicrosoftGraphCredential`.
+- Fleet admin: `Add-FleetTeamUser`, `Set-FleetTeamAgentOption` (`-SkipValidation` sends `force`; `-DryRun` sends `dry_run`), `Move-FleetHost` for transfer by filter, and `Set-FleetHostNameTemplate`. An empty template clears it.
+- `Start-FleetScriptBatch`, `Move-FleetHost`, and `Send-FleetConfigurationProfile -Filter` reject an empty filter, an unknown key, and an empty value. Fleet treats those as no filter and would act on every host.
+- Verbose logs also redact `service_account_key`, `client_secret`, and `private_key`. One list of names drives every redaction pattern.
+- `Tests/ModuleParity.Tests.ps1` checks that `Public` files, `FunctionsToExport`, and `docs/en-US` pages match, that every command has a synopsis and an example, and that it is listed in the nav, index, README, module page, and about topic.
+
+### Verified against Fleet 4.96 Premium
+
+Completed on a live Fleet 4.96 Premium server: `Remove-FleetPolicy` for global and fleet policies, the HTTP 422 reason, script upload, update, UTF-8 `-Contents` download, and delete, batch script start, read, host results, and cancel, the setup experience script upload, download, and delete, clearing setup software, patch deadlines, setting and clearing a host name template, `Add-FleetTeamUser`, `Set-FleetTeamAgentOption -DryRun`, `Move-FleetHost` with a filter that matched no host, and `Set-FleetMicrosoftGraphCredential -Clear`. Fleet 4.96 answers a script update with only `script_id` and a policy delete with the deleted ids.
+
+These routes reached Fleet's handler and returned Fleet's own 4xx reason. That proves the route and the request shape, not the full flow: configuration profiles (MDM is off), the EULA, bootstrap packages, ADE profiles, App Store apps, MDM commands, host secrets and rotation, clear passcode, VPP token upload and fleet assignment, Google conditional access connect and update, the Graph credential dry run, package update and download for an unknown title, and setup software with an unknown title. Package upload and Fleet-maintained app add reached the server, which then could not reach its private-network installer storage (HTTP 500).
+
+Covered only by mocked and HTTP listener tests: a successful package upload, update, and byte-identical download, the EULA file download, `Get-FleetScriptResult -Wait` reaching an exit code, setup software with a real title, and what VPP `-AllFleets` and `-NoFleet` do to fleet access. Windows PowerShell 5.1 was not run. The new files pass PSScriptAnalyzer's 5.1 syntax check.
+
+The plan's remaining items stay on `Invoke-FleetDMMethod`: SCIM, the MCP endpoint, certificate authorities, raw MDM commands, and the other routes listed in the README roadmap.
+
 ## 2.3.1
 
 ### Fixed

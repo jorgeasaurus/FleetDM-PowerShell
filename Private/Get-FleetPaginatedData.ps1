@@ -16,6 +16,7 @@ function Get-FleetPaginatedData {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
+        [AllowNull()]
         [object]$Response,
         
         [switch]$ReturnMetadata
@@ -115,6 +116,11 @@ function Get-FleetPaginatedData {
         }
         if ($null -eq $collection -and $null -ne $unwrapped) {
             $collection = @($unwrapped)
+        }
+        # Fleet sends an empty list as null, such as "scripts": null. An
+        # envelope with meta and no collection is an empty page, not a record.
+        if ($null -eq $collection -and $Response.PSObject.Properties.Name -contains 'meta') {
+            $collection = @()
         }
         if ($null -ne $collection) {
             $result.Data = $collection

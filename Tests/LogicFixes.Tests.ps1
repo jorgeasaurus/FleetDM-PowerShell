@@ -36,6 +36,80 @@ Describe 'Request and pagination fixes' -Tag 'Unit' {
         }
     }
 
+    It 'keeps a one-element array nested in a PSCustomObject' {
+        InModuleScope FleetDM-PowerShell {
+            $profile = [PSCustomObject]@{
+                is_mandatory = $true
+                skip_setup_items = @('Location')
+                profile_name = 'ADE'
+            }
+            $options = [PSCustomObject]@{
+                config = [PSCustomObject]@{
+                    decorators = [PSCustomObject]@{ load = @('SELECT 1') }
+                }
+            }
+            $profileJson = ConvertTo-FleetJson -InputObject @{ enrollment_profile = $profile }
+            $optionsJson = ConvertTo-FleetJson -InputObject @{ config = $options.config }
+            $profileJson | Should -Match '"skip_setup_items":\["Location"\]'
+            $profileJson | Should -Match '"is_mandatory":true'
+            $optionsJson | Should -Match '"load":\["SELECT 1"\]'
+            $profile.skip_setup_items -is [System.Array] | Should -BeTrue
+        }
+    }
+
+    It 'keeps a one-element array parsed from JSON' {
+        InModuleScope FleetDM-PowerShell {
+            $profile = ConvertFrom-FleetJson -Json '{"is_mandatory":true,"skip_setup_items":["Location"],"profile_name":"ADE"}'
+            $options = ConvertFrom-FleetJson -Json '{"config":{"decorators":{"load":["SELECT 1"]}}}'
+            $profile.skip_setup_items -is [System.Array] | Should -BeTrue
+            $profile.skip_setup_items.Count | Should -Be 1
+            $profile.skip_setup_items[0] | Should -Be 'Location'
+            $options.config.decorators.load -is [System.Array] | Should -BeTrue
+            $options.config.decorators.load.Count | Should -Be 1
+            $profileJson = ConvertTo-FleetJson -InputObject @{ enrollment_profile = $profile }
+            $optionsJson = ConvertTo-FleetJson -InputObject @{ config = $options.config }
+            $profileJson | Should -Match '"skip_setup_items":\["Location"\]'
+            $optionsJson | Should -Match '"load":\["SELECT 1"\]'
+        }
+    }
+
+    It 'keeps a one-element or empty collection stored in a hashtable' {
+        InModuleScope FleetDM-PowerShell {
+            $body = @{}
+            Copy-FleetJsonArray -Target $body -Name 'host_ids' -Value @(10)
+            Copy-FleetJsonArray -Target $body -Name 'categories' -Value @()
+            Copy-FleetJsonArray -Target $body -Name 'labels_include_any' -Value @('Engineering')
+            $body.host_ids -is [System.Array] | Should -BeTrue
+            $body.host_ids.Count | Should -Be 1
+            $body.host_ids[0] | Should -Be 10
+            $body.categories -is [System.Array] | Should -BeTrue
+            $body.categories.Count | Should -Be 0
+            $body.labels_include_any -is [System.Array] | Should -BeTrue
+            $json = ConvertTo-FleetJson -InputObject $body
+            $json | Should -Match '"host_ids":\[10\]'
+            $json | Should -Match '"categories":\[\]'
+            $json | Should -Match '"labels_include_any":\["Engineering"\]'
+            $json | Should -Not -Match '"host_ids":10'
+            $json | Should -Not -Match '"labels_include_any":"Engineering"'
+        }
+    }
+
+    It 'truncates a deep object with ConvertTo-Json depth 1, which 5.1 accepts' {
+        InModuleScope FleetDM-PowerShell {
+            $node = [pscustomobject]@{ label = 'leaf-value'; items = @('only') }
+            foreach ($unused in 1..5) {
+                $node = [pscustomobject]@{ child = $node }
+            }
+            $json = ConvertTo-FleetJson -InputObject $node -Depth 1
+            { $null = $json | ConvertFrom-Json } | Should -Not -Throw
+            $json | Should -Match '"child"'
+            $json | Should -Not -Match 'leaf-value'
+            $definition = (Get-Command ConvertTo-FleetJson).Definition
+            $definition | Should -Not -Match 'ConvertTo-Json -Compress -Depth 0'
+            $definition | Should -Match 'ConvertTo-Json -Compress -Depth 1'
+        }
+    }
+
     It 'encodes query text without System.Object[] and skips nulls' {
         InModuleScope FleetDM-PowerShell {
             Mock Invoke-RestMethod { return @{ hosts = @() } }
@@ -390,6 +464,40 @@ Describe 'Premium HTTP errors' -Tag 'Unit' {
             $worker.EndInvoke($handle) | Out-Null
             $worker.Dispose()
             $runspace.Close()
+            InModuleScope FleetDM-PowerShell {
+                $script:FleetDMConnection.BaseUri = 'https://test.fleetdm.example.com'
+            }
+        }
+    }
+
+    It 'keeps errors[].reason from a live Fleet 4.96 HTTP 422 response' {
+        # Captured verbatim from POST /api/v1/fleet/scripts/run against a host without fleetd.
+        $fixture = @'
+{
+  "message": "Unprocessable Entity",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled."
+    }
+  ],
+  "uuid": "ee6abe15-1ed1-4915-af68-4d03095cde20"
+}
+'@
+        . (Join-Path $PSScriptRoot 'TestHelper.ps1')
+        $server = Start-FleetTestListener -StatusCode 422 -ResponseBody $fixture -ResponseContentType 'application/json; charset=utf-8'
+        try {
+            InModuleScope FleetDM-PowerShell -Parameters @{ Base = $server.BaseUri } {
+                param($Base)
+                $script:FleetDMConnection.BaseUri = $Base
+            }
+            $thrown = $null
+            try { Invoke-FleetScript -HostId 2 -ScriptContents 'echo hi' -Confirm:$false } catch { $thrown = $_.Exception.Message }
+            $thrown | Should -BeExactly 'Fleet could not process the request (HTTP 422). Error: Unprocessable Entity Reason: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled.'
+            $server.State.Url | Should -Be '/api/v1/fleet/scripts/run'
+        }
+        finally {
+            Stop-FleetTestListener -Server $server
             InModuleScope FleetDM-PowerShell {
                 $script:FleetDMConnection.BaseUri = 'https://test.fleetdm.example.com'
             }
